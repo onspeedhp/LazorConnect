@@ -8,7 +8,7 @@ import TransactionModal from '@/components/modals/TransactionModal';
 import BiometricPrompt from '@/components/modals/BiometricPrompt';
 import { ClientTransaction } from '@shared/schema';
 import LazorKit from '@/lib/lazorKit';
-import { connectWallet, disconnectWallet, requestAirdrop, getWalletBalance } from '@/lib/walletAdapter';
+import { connectWallet, disconnectWallet, requestAirdrop, getWalletBalance, sendTransaction } from '@/lib/walletAdapter';
 import { useToast } from "@/hooks/use-toast";
 
 type ConnectionMethod = 'passkey' | 'phantom' | null;
@@ -255,7 +255,7 @@ export default function Home() {
     });
   };
 
-  const handleSendTransaction = () => {
+  const handleSendTransaction = async () => {
     if (connectionMethod === 'passkey') {
       setBiometricAction('transaction');
       setShowBiometricPrompt(true);
@@ -263,10 +263,39 @@ export default function Home() {
       // For Phantom, show the transaction modal directly
       setTransactionStatus('processing');
       setShowTransactionModal(true);
-      simulateDelay(() => {
-        setTransactionStatus('success');
-        addTransaction(0.001, true, 'phantom');
-      }, 2000);
+      
+      try {
+        // Use a fake recipient address for demo purposes
+        const recipientAddress = "DzGkwSr6HWt94DzSpKPvxnFWKX4xZG7r2aSwYk9iQEM6";
+        const transactionAmount = 0.001;
+        
+        // Attempt to send the transaction through Phantom wallet
+        const signature = await sendTransaction(walletAddress, recipientAddress, transactionAmount);
+        
+        if (signature) {
+          setTransactionStatus('success');
+          toast({
+            title: "Transaction Successful",
+            description: "The SOL has been successfully sent!",
+          });
+          addTransaction(transactionAmount, true, 'phantom');
+          
+          // Update balance after successful transaction
+          const newBalance = await getWalletBalance(walletAddress);
+          setBalance(newBalance);
+        } else {
+          throw new Error("Transaction failed with no signature returned");
+        }
+      } catch (error: any) {
+        console.error("Transaction error:", error);
+        setTransactionStatus('error');
+        toast({
+          title: "Transaction Failed",
+          description: error.message || "Failed to send transaction",
+          variant: "destructive"
+        });
+        addTransaction(0.001, false, 'phantom');
+      }
     }
   };
 

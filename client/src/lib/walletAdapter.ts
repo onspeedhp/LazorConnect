@@ -102,12 +102,15 @@ export const sendTransaction = async (
 ): Promise<string | undefined> => {
   try {
     const provider = getProvider();
-    if (!provider) return undefined;
+    if (!provider) {
+      throw new Error("Phantom wallet not connected or not installed");
+    }
     
-    const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+    // Use the persistent connection
     const sender = new PublicKey(senderPublicKey);
     const recipient = new PublicKey(recipientPublicKey);
     
+    // Create the transaction
     const transaction = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: sender,
@@ -121,18 +124,32 @@ export const sendTransaction = async (
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sender;
     
-    // Sign the transaction
-    const signedTransaction = await provider.signTransaction(transaction);
-    
-    // Send the transaction to the cluster
-    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-    
-    // Confirm the transaction
-    await connection.confirmTransaction(signature, 'confirmed');
-    
-    return signature;
+    try {
+      // Sign the transaction - this will trigger the Phantom wallet popup
+      const signedTransaction = await provider.signTransaction(transaction);
+      
+      // Send the transaction to the cluster
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      
+      // Log the transaction URL
+      console.log(`Transaction sent: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+      
+      // Confirm the transaction
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      
+      // Check if there was an error in the transaction
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
+      
+      return signature;
+    } catch (error: any) {
+      // This catches errors in the signing process, like when a user rejects the transaction
+      console.error("Error signing or sending transaction:", error);
+      throw new Error(`Transaction signing failed: ${error.message || 'Unknown error'}`);
+    }
   } catch (error) {
-    console.error("Error sending transaction:", error);
-    return undefined;
+    console.error("Error in transaction process:", error);
+    throw error; // Rethrow to handle in the UI
   }
 };
