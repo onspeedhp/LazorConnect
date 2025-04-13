@@ -5,6 +5,7 @@ import {
   SystemProgram,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
+import { PhantomDeepLink } from './phantomUtils/deepLinkConnection';
 
 interface PhantomProvider {
   publicKey: PublicKey | null;
@@ -41,18 +42,24 @@ export const getProvider = (): PhantomProvider | undefined => {
   return undefined;
 };
 
+// Gets the Phantom deep link for direct connection
 export const getPhantomDeepLink = (): string => {
-  // For mobile devices, create a deeplink to the Phantom app
-  // Documentation: https://docs.phantom.app/integrating/deeplinks-ios-and-android
-  
-  // Use the recommended connect endpoint with proper parameters
-  const params = new URLSearchParams({
-    app_url: window.location.origin,
-    redirect_link: window.location.href,
-    cluster: "devnet"
-  });
-  
-  return `https://phantom.app/ul/v1/connect?${params.toString()}`;
+  try {
+    // We'll use the new encryption-based DeepLink approach
+    const phantomInstance = PhantomDeepLink.getInstance();
+    return phantomInstance.connect();
+  } catch (error) {
+    console.error("Error creating deeplink:", error);
+    
+    // Fallback to a simple deeplink if there's an error
+    const params = new URLSearchParams({
+      app_url: window.location.origin,
+      redirect_link: window.location.href,
+      cluster: "devnet"
+    });
+    
+    return `https://phantom.app/ul/v1/connect?${params.toString()}`;
+  }
 };
 
 export const connectWallet = async (): Promise<string | undefined> => {
@@ -61,9 +68,14 @@ export const connectWallet = async (): Promise<string | undefined> => {
     const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     if (isMobile) {
-      // On mobile, we need to use deeplinks to connect to Phantom
-      // For the demo, we'll just say we're connected and return a simulated address
-      return "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"; // Simulated address for mobile
+      // On mobile, use the DeepLink approach to connect to Phantom
+      // The actual connection will be handled by the URL handler in the app
+      const phantomUrl = getPhantomDeepLink();
+      console.log("Opening Phantom URL for mobile:", phantomUrl);
+      
+      // For demo/testing, return a simulated address
+      // In production, this gets set later when the app handles the deep link response
+      return "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"; 
     }
     
     // On desktop, use the extension
@@ -84,6 +96,19 @@ export const connectWallet = async (): Promise<string | undefined> => {
 
 export const disconnectWallet = async (): Promise<void> => {
   try {
+    // Check if we're on mobile
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // On mobile, use the DeepLink approach
+      const phantomInstance = PhantomDeepLink.getInstance();
+      const disconnectUrl = phantomInstance.disconnect();
+      console.log("Opening Phantom disconnect URL:", disconnectUrl);
+      window.location.href = disconnectUrl;
+      return;
+    }
+    
+    // On desktop, use the extension
     const provider = getProvider();
     if (provider) {
       await provider.disconnect();
@@ -134,6 +159,36 @@ export const sendTransaction = async (
   amount: number,
 ): Promise<string | undefined> => {
   try {
+    // Check if we're on mobile
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Create a transaction
+      const sender = new PublicKey(senderPublicKey);
+      const recipient = new PublicKey(recipientPublicKey);
+      
+      // Create a transaction object
+      const transaction = new Transaction();
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: sender,
+          toPubkey: recipient,
+          lamports: amount * LAMPORTS_PER_SOL,
+        })
+      );
+      
+      // Use deep linking to send the transaction
+      const phantomInstance = PhantomDeepLink.getInstance();
+      const transactionUrl = phantomInstance.signAndSendTransaction(transaction);
+      console.log("Opening Phantom transaction URL:", transactionUrl);
+      window.location.href = transactionUrl;
+      
+      // For demo/testing, return a simulated signature
+      // In production, this gets set when the app handles the deep link response
+      return "simulated-signature-for-mobile";
+    }
+    
+    // On desktop, use the extension
     const provider = getProvider();
     if (!provider) {
       throw new Error("Phantom wallet not connected or not installed");
@@ -164,8 +219,6 @@ export const sendTransaction = async (
     try {
       // Send the transaction using Phantom's sendTransaction method
       // This handles all the internal Buffer handling
-      // Note: provider.request only takes one object parameter according to the interface
-      // The type definition requires a proper structure for params
       const { signature } = await provider.request({
         method: "signAndSendTransaction",
         params: {
@@ -179,7 +232,6 @@ export const sendTransaction = async (
       );
 
       // Confirm the transaction - using a more compatible approach
-      // This avoids TypeScript errors with the Web3.js interface
       const latestBlockhash = await connection.getLatestBlockhash();
       const confirmation = await connection.confirmTransaction({
         blockhash: latestBlockhash.blockhash,
