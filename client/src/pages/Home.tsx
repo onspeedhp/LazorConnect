@@ -226,14 +226,26 @@ export default function Home() {
 
   const connectWithPhantom = async () => {
     try {
+      // Check if user is on mobile
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // Get public key (real or simulated)
       const publicKey = await connectWallet();
       if (publicKey) {
         setWalletAddress(publicKey);
         setConnectionMethod("phantom");
         setIsConnected(true);
+        
+        // For demo purposes, start with some SOL
+        simulateDelay(() => {
+          setBalance(2.5); // Start with 2.5 SOL
+        }, 500);
+        
         toast({
           title: "Connected with Phantom",
-          description: "You are now connected using Phantom wallet.",
+          description: isMobile 
+            ? "Connected using simulated Phantom wallet (mobile demo)" 
+            : "You are now connected using Phantom wallet.",
         });
       } else {
         toast({
