@@ -42,9 +42,14 @@ export const getPhantomDeepLink = (): string => {
   // For mobile devices, create a deeplink to the Phantom app
   // Documentation: https://docs.phantom.app/integrating/deeplinks-ios-and-android
   
-  // Currently, the simplest way is to use the browse endpoint
-  const currentUrl = encodeURIComponent(window.location.href);
-  return `https://phantom.app/ul/browse/${currentUrl}`;
+  // Use the recommended connect endpoint with proper parameters
+  const params = new URLSearchParams({
+    app_url: window.location.origin,
+    redirect_link: window.location.href,
+    cluster: "devnet"
+  });
+  
+  return `https://phantom.app/ul/v1/connect?${params.toString()}`;
 };
 
 export const connectWallet = async (): Promise<string | undefined> => {
@@ -151,11 +156,15 @@ export const sendTransaction = async (
     try {
       // Send the transaction using Phantom's sendTransaction method
       // This handles all the internal Buffer handling
+      // Note: provider.request only takes one object parameter according to the interface
       const { signature } = await provider.request({
         method: "signAndSendTransaction",
         params: {
           message: transaction,
-        },
+          options: {
+            commitment: "confirmed"
+          }
+        }
       });
 
       // Log the transaction URL
@@ -163,8 +172,12 @@ export const sendTransaction = async (
         `Transaction sent: https://explorer.solana.com/tx/${signature}?cluster=devnet`,
       );
 
-      // Confirm the transaction
-      const confirmation = await connection.confirmTransaction(signature, "confirmed");
+      // Confirm the transaction - provide commitment level to satisfy args requirement
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        lastValidBlockHeight,
+        blockhash
+      }, "confirmed");
 
       // Check if there was an error in the transaction
       if (confirmation.value.err) {

@@ -21,13 +21,17 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
   
   const handleMobileConnect = () => {
     try {
-      // Log for debugging
-      console.log('Attempting to open Phantom wallet on mobile with URL:', window.location.href);
+      // Import the getPhantomDeepLink function
+      const { getPhantomDeepLink } = require('../../lib/walletAdapter');
       
-      // Try a direct deep link approach for mobile
-      // This format works better on iOS Safari
-      const phantomUrl = 'https://phantom.app/ul/connect';
+      // Log for debugging
+      console.log('Attempting to open Phantom wallet on mobile');
+      
+      // Get the deep link URL with proper parameters
+      const phantomUrl = getPhantomDeepLink();
       console.log('Opening Phantom URL:', phantomUrl);
+      
+      // Redirect to Phantom app
       window.location.href = phantomUrl;
       
       // Close the modal
