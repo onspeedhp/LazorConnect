@@ -1,6 +1,3 @@
-// Import buffer polyfill first to ensure it's available globally
-import "./lib/buffer-polyfill";
-
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";

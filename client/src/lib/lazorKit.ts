@@ -1,5 +1,4 @@
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { Buffer } from './buffer-polyfill';
 
 // This is a simulated implementation of the Lazor.kit SDK
 // In a real implementation, you would import and use the actual Lazor.kit SDK

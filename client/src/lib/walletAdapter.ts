@@ -1,5 +1,4 @@
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { Buffer } from './buffer-polyfill';
 
 interface PhantomProvider {
   publicKey: PublicKey | null;
@@ -107,36 +106,46 @@ export const sendTransaction = async (
       throw new Error("Phantom wallet not connected or not installed");
     }
     
-    // Use the persistent connection
+    // Let's use a more direct approach with Phantom's provider
     const sender = new PublicKey(senderPublicKey);
     const recipient = new PublicKey(recipientPublicKey);
     
-    // Create the transaction
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: sender,
-        toPubkey: recipient,
-        lamports: amount * LAMPORTS_PER_SOL,
-      })
-    );
+    // Get a recent blockhash
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     
-    // Get a recent blockhash to include in the transaction
-    const { blockhash } = await connection.getLatestBlockhash('finalized');
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = sender;
+    // Prepare transaction data
+    const transaction = {
+      blockhash,
+      lastValidBlockHeight,
+      feePayer: sender,
+      instructions: [
+        SystemProgram.transfer({
+          fromPubkey: sender,
+          toPubkey: recipient,
+          lamports: amount * LAMPORTS_PER_SOL,
+        })
+      ]
+    };
     
     try {
-      // Sign the transaction - this will trigger the Phantom wallet popup
-      const signedTransaction = await provider.signTransaction(transaction);
-      
-      // Send the transaction to the cluster
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      // Send the transaction using Phantom's sendTransaction method
+      // This handles all the internal Buffer handling
+      const { signature } = await provider.request({
+        method: "signAndSendTransaction",
+        params: {
+          message: transaction
+        }
+      });
       
       // Log the transaction URL
       console.log(`Transaction sent: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
       
       // Confirm the transaction
-      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      const confirmation = await connection.confirmTransaction({
+        signature, 
+        blockhash, 
+        lastValidBlockHeight
+      });
       
       // Check if there was an error in the transaction
       if (confirmation.value.err) {
