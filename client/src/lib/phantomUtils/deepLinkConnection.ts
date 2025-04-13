@@ -71,12 +71,11 @@ export class PhantomDeepLink {
       
       // Handle error response
       if (params.get("errorCode")) {
-        // Create an error object manually without spreading URLSearchParams
-        const error: Record<string, string> = {};
-        params.forEach((value, key) => {
-          error[key] = value;
+        // Log only the error code and message
+        console.error("Phantom connection error:", {
+          errorCode: params.get("errorCode"),
+          errorMessage: params.get("errorMessage")
         });
-        console.error("Phantom connection error:", error);
         return null;
       }
       
@@ -187,8 +186,11 @@ export class PhantomDeepLink {
       
       // Handle error
       if (params.get("errorCode")) {
-        const error = Object.fromEntries([...params]);
-        console.error("Transaction error:", error);
+        // Log only the error code and message
+        console.error("Transaction error:", {
+          errorCode: params.get("errorCode"),
+          errorMessage: params.get("errorMessage")
+        });
         return null;
       }
       

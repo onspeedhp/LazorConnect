@@ -1,5 +1,6 @@
 import { FC, useEffect, useState } from 'react';
 import { getPhantomDeepLink } from '@/lib/walletAdapter';
+import { usePhantomDeepLink } from '@/lib/phantomUtils/deepLinkConnection';
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface WalletModalProps {
 
 const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect }) => {
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const { connect: connectWithDeepLink } = usePhantomDeepLink();
   
   useEffect(() => {
     // Check if user is on mobile device
@@ -22,20 +24,31 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
   const handleMobileConnect = () => {
     try {
       // Log for debugging
-      console.log('Attempting to open Phantom wallet on mobile');
+      console.log('Attempting to open Phantom wallet on mobile with encrypted deeplink');
       
-      // Get the deep link URL with proper parameters (imported at the top of the file)
-      const phantomUrl = getPhantomDeepLink();
-      console.log('Opening Phantom URL:', phantomUrl);
-      
-      // Redirect to Phantom app
-      window.location.href = phantomUrl;
+      // Connect using the new deeplink approach with encryption
+      connectWithDeepLink();
       
       // Close the modal
       setTimeout(() => onClose(), 500);
     } catch (error) {
-      console.error('Error opening Phantom mobile app:', error);
-      alert('Error opening Phantom app: ' + (error instanceof Error ? error.message : String(error)));
+      // Fall back to the simpler approach if the encrypted one fails
+      console.error('Error with encrypted deeplink, falling back to simple deeplink:', error);
+      
+      try {
+        // Get the simple deep link URL
+        const phantomUrl = getPhantomDeepLink();
+        console.log('Opening simple Phantom URL:', phantomUrl);
+        
+        // Redirect to Phantom app
+        window.location.href = phantomUrl;
+        
+        // Close the modal
+        setTimeout(() => onClose(), 500);
+      } catch (fallbackError) {
+        console.error('Error opening Phantom mobile app:', fallbackError);
+        alert('Error opening Phantom app: ' + (fallbackError instanceof Error ? fallbackError.message : String(fallbackError)));
+      }
     }
   };
 
