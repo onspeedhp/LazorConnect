@@ -10,6 +10,7 @@ import { ClientTransaction } from '@shared/schema';
 import LazorKit from '@/lib/lazorKit';
 import { connectWallet, disconnectWallet, requestAirdrop, getWalletBalance, sendTransaction } from '@/lib/walletAdapter';
 import { useToast } from "@/hooks/use-toast";
+import { Buffer } from 'buffer';
 
 type ConnectionMethod = 'passkey' | 'phantom' | null;
 type TransactionStatus = 'processing' | 'success' | 'error';
