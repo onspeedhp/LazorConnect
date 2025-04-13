@@ -1,4 +1,5 @@
-import { FC } from 'react';
+import { FC, useEffect, useState } from 'react';
+import { getPhantomDeepLink } from '@/lib/walletAdapter';
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -7,6 +8,25 @@ interface WalletModalProps {
 }
 
 const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect }) => {
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  
+  useEffect(() => {
+    // Check if user is on mobile device
+    const checkMobile = () => {
+      setIsMobile(/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+    
+    checkMobile();
+  }, []);
+  
+  const handleMobileConnect = () => {
+    // Open the Phantom wallet app via deep link
+    window.location.href = 'https://phantom.app/ul/browse/' + window.location.href;
+    
+    // Close the modal
+    setTimeout(() => onClose(), 500);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -23,44 +43,73 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
             <img src="https://phantom.app/apple-touch-icon.png" alt="Phantom Logo" className="w-10 h-10 rounded-full" />
           </div>
           <h3 className="text-xl font-bold mb-2">Connect to Phantom</h3>
-          <p className="text-sm text-[#474A57]">Open your Phantom wallet app to connect</p>
+          <p className="text-sm text-[#474A57]">
+            {isMobile 
+              ? "Open Phantom app on your mobile device" 
+              : "Open your Phantom wallet extension to connect"}
+          </p>
         </div>
-        <div className="border border-gray-200 rounded-xl p-4 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium">Connection Status</span>
-            <div className="flex items-center">
-              <div className="h-2 w-2 rounded-full bg-[#FFBB33] mr-2 animate-bounce"></div>
-              <span className="text-xs text-[#FFBB33]">Waiting...</span>
+        
+        {isMobile && (
+          <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 mb-6">
+            <div className="flex items-start">
+              <i className="fas fa-info-circle text-yellow-500 mt-0.5 mr-2"></i>
+              <p className="text-sm text-[#474A57]">
+                On mobile devices, you'll be redirected to the Phantom app. If you don't have it installed,
+                you'll be taken to the app store.
+              </p>
             </div>
           </div>
-          <ol className="text-sm text-[#474A57] space-y-2">
-            <li className="flex items-center">
-              <div className="w-5 h-5 rounded-full bg-[#00D170] flex items-center justify-center mr-2 text-white text-xs">
-                <i className="fas fa-check"></i>
+        )}
+        
+        {!isMobile && (
+          <div className="border border-gray-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium">Connection Status</span>
+              <div className="flex items-center">
+                <div className="h-2 w-2 rounded-full bg-[#FFBB33] mr-2 animate-bounce"></div>
+                <span className="text-xs text-[#FFBB33]">Waiting...</span>
               </div>
-              <span>Initializing connection</span>
-            </li>
-            <li className="flex items-center">
-              <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
-                2
-              </div>
-              <span>Open Phantom app on your device</span>
-            </li>
-            <li className="flex items-center">
-              <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
-                3
-              </div>
-              <span>Approve connection request</span>
-            </li>
-          </ol>
-        </div>
+            </div>
+            <ol className="text-sm text-[#474A57] space-y-2">
+              <li className="flex items-center">
+                <div className="w-5 h-5 rounded-full bg-[#00D170] flex items-center justify-center mr-2 text-white text-xs">
+                  <i className="fas fa-check"></i>
+                </div>
+                <span>Initializing connection</span>
+              </li>
+              <li className="flex items-center">
+                <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
+                  2
+                </div>
+                <span>Open Phantom extension</span>
+              </li>
+              <li className="flex items-center">
+                <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
+                  3
+                </div>
+                <span>Approve connection request</span>
+              </li>
+            </ol>
+          </div>
+        )}
+        
         <div className="flex justify-center">
-          <button 
-            onClick={onSimulateConnect} 
-            className="bg-gradient-to-r from-[#7857FF] to-[#6447CC] py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#7857FF]/30 transition-all duration-300"
-          >
-            Simulate Connection (Demo)
-          </button>
+          {isMobile ? (
+            <button 
+              onClick={handleMobileConnect} 
+              className="bg-gradient-to-r from-[#7857FF] to-[#6447CC] py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#7857FF]/30 transition-all duration-300"
+            >
+              Open Phantom App
+            </button>
+          ) : (
+            <button 
+              onClick={onSimulateConnect} 
+              className="bg-gradient-to-r from-[#7857FF] to-[#6447CC] py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#7857FF]/30 transition-all duration-300"
+            >
+              Simulate Connection (Demo)
+            </button>
+          )}
         </div>
       </div>
     </div>

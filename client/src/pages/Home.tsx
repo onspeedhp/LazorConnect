@@ -16,7 +16,6 @@ import {
   sendTransaction,
 } from "@/lib/walletAdapter";
 import { useToast } from "@/hooks/use-toast";
-import Buffer from "buffer";
 
 type ConnectionMethod = "passkey" | "phantom" | null;
 type TransactionStatus = "processing" | "success" | "error";
@@ -278,42 +277,42 @@ export default function Home() {
       setTransactionStatus("processing");
       setShowTransactionModal(true);
 
-      // For demonstration purposes, let's simulate a Phantom wallet transaction
-      // This bypasses the Buffer issues while showing the comparison between methods
-      const transactionAmount = 0.001;
-      
-      toast({
-        title: "Transaction Processing",
-        description: "Please approve the transaction in your Phantom wallet.",
-      });
-      
-      // Simulate a delayed transaction process to demonstrate wallet popup and processing
-      setTimeout(() => {
-        // 70% chance of success for demo purposes
-        const isSuccess = Math.random() < 0.7;
-        
-        if (isSuccess) {
-          // Simulate success scenario
+      try {
+        // Use a fake recipient address for demo purposes
+        const recipientAddress = "DzGkwSr6HWt94DzSpKPvxnFWKX4xZG7r2aSwYk9iQEM6";
+        const transactionAmount = 0.001;
+
+        // Attempt to send the transaction through Phantom wallet
+        const signature = await sendTransaction(
+          walletAddress,
+          recipientAddress,
+          transactionAmount,
+        );
+
+        if (signature) {
           setTransactionStatus("success");
           toast({
             title: "Transaction Successful",
             description: "The SOL has been successfully sent!",
           });
           addTransaction(transactionAmount, true, "phantom");
-          
+
           // Update balance after successful transaction
-          setBalance(prev => prev - transactionAmount - 0.000005); // Subtract amount + fee
+          const newBalance = await getWalletBalance(walletAddress);
+          setBalance(newBalance);
         } else {
-          // Simulate error scenario
-          setTransactionStatus("error");
-          toast({
-            title: "Transaction Failed",
-            description: "Transaction was rejected or failed to process.",
-            variant: "destructive",
-          });
-          addTransaction(transactionAmount, false, "phantom");
+          throw new Error("Transaction failed with no signature returned");
         }
-      }, 2000);
+      } catch (error: any) {
+        console.error("Transaction error:", error);
+        setTransactionStatus("error");
+        toast({
+          title: "Transaction Failed",
+          description: error.message || "Failed to send transaction",
+          variant: "destructive",
+        });
+        addTransaction(0.001, false, "phantom");
+      }
     }
   };
 
