@@ -41,7 +41,7 @@ export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 
 // Client-side types
-export interface Transaction {
+export interface ClientTransaction {
   id: string;
   amount: number;
   success: boolean;

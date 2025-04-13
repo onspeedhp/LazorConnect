@@ -1,5 +1,5 @@
 import { FC, useState } from 'react';
-import { Transaction as TransactionType } from '@shared/schema';
+import { ClientTransaction } from '@shared/schema';
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardProps {
@@ -9,7 +9,7 @@ interface DashboardProps {
   onSendTransaction: () => void;
   onRequestAirdrop: () => void;
   balance: number;
-  transactions: TransactionType[];
+  transactions: ClientTransaction[];
 }
 
 const Dashboard: FC<DashboardProps> = ({

@@ -6,7 +6,7 @@ import PasskeyModal from '@/components/modals/PasskeyModal';
 import WalletModal from '@/components/modals/WalletModal';
 import TransactionModal from '@/components/modals/TransactionModal';
 import BiometricPrompt from '@/components/modals/BiometricPrompt';
-import { Transaction as TransactionType } from '@shared/schema';
+import { ClientTransaction } from '@shared/schema';
 import LazorKit from '@/lib/lazorKit';
 import { connectWallet, disconnectWallet, requestAirdrop, getWalletBalance } from '@/lib/walletAdapter';
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +18,7 @@ export default function Home() {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [connectionMethod, setConnectionMethod] = useState<ConnectionMethod>(null);
   const [walletAddress, setWalletAddress] = useState<string>('');
-  const [transactions, setTransactions] = useState<TransactionType[]>([]);
+  const [transactions, setTransactions] = useState<ClientTransaction[]>([]);
   const [balance, setBalance] = useState<number>(0);
   const [isAirdropLoading, setIsAirdropLoading] = useState<boolean>(false);
 
@@ -298,7 +298,7 @@ export default function Home() {
   };
 
   const addTransaction = (amount: number, success: boolean, method: 'passkey' | 'phantom') => {
-    const newTransaction: TransactionType = {
+    const newTransaction: ClientTransaction = {
       id: `tx_${Date.now()}`,
       amount,
       success,
