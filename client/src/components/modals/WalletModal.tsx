@@ -67,9 +67,10 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
             <div className="flex items-start">
               <i className="fas fa-info-circle text-yellow-500 mt-0.5 mr-2"></i>
               <p className="text-sm text-[#474A57]">
-                On mobile devices, you have two options:<br/>
-                1. Click "Open Phantom App" to launch the Phantom Wallet app<br/>
-                2. Or "Continue with Demo" to experience the features
+                For the best demo experience:<br/>
+                • "Continue with Demo" is recommended for testing<br/>
+                • Or click "Open Phantom App" if you have the app installed
+                <br/><strong>Note:</strong> Full connection may require additional setup
               </p>
             </div>
           </div>
@@ -109,22 +110,22 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
         
         <div className="flex justify-center">
           <div className="space-y-2 w-full">
+            {/* Always provide a simulation option for demo */}
+            <button 
+              onClick={onSimulateConnect} 
+              className="w-full bg-gradient-to-r from-[#7857FF] to-[#6447CC] py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#7857FF]/30 transition-all duration-300"
+            >
+              {isMobile ? 'Continue with Demo (Recommended)' : 'Simulate Connection (Demo)'}
+            </button>
+            
             {isMobile && (
               <button 
                 onClick={handleMobileConnect} 
-                className="w-full bg-gradient-to-r from-[#7857FF] to-[#6447CC] py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#7857FF]/30 transition-all duration-300"
+                className="w-full bg-gray-100 text-gray-700 py-3 px-8 rounded-xl font-medium hover:shadow-lg transition-all duration-300 mt-2"
               >
                 Open Phantom App
               </button>
             )}
-            
-            {/* Always provide a simulation option for demo */}
-            <button 
-              onClick={onSimulateConnect} 
-              className={`w-full ${isMobile ? 'bg-gray-100 text-gray-700' : 'bg-gradient-to-r from-[#7857FF] to-[#6447CC] text-white'} py-3 px-8 rounded-xl font-medium hover:shadow-lg transition-all duration-300`}
-            >
-              {isMobile ? 'Continue with Demo' : 'Simulate Connection (Demo)'}
-            </button>
           </div>
         </div>
       </div>
