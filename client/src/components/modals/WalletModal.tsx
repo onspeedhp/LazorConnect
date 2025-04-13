@@ -38,7 +38,7 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
       setTimeout(() => onClose(), 500);
     } catch (error) {
       console.error('Error opening Phantom mobile app:', error);
-      alert('Có lỗi khi mở ứng dụng Phantom: ' + (error instanceof Error ? error.message : String(error)));
+      alert('Error opening Phantom app: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -70,9 +70,9 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
             <div className="flex items-start">
               <i className="fas fa-info-circle text-yellow-500 mt-0.5 mr-2"></i>
               <p className="text-sm text-[#474A57]">
-                Trên thiết bị di động, bạn có hai lựa chọn:<br/>
-                1. Nhấn "Mở Phantom App" để mở ứng dụng Phantom Wallet<br/>
-                2. Hoặc "Tiếp tục dùng bản Demo" để trải nghiệm tính năng
+                On mobile devices, you have two options:<br/>
+                1. Click "Open Phantom App" to launch the Phantom Wallet app<br/>
+                2. Or "Continue with Demo" to experience the features
               </p>
             </div>
           </div>
@@ -117,16 +117,16 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
                 onClick={handleMobileConnect} 
                 className="w-full bg-gradient-to-r from-[#7857FF] to-[#6447CC] py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#7857FF]/30 transition-all duration-300"
               >
-                Mở Phantom App
+                Open Phantom App
               </button>
             )}
             
-            {/* Luôn cung cấp tùy chọn mô phỏng để demo */}
+            {/* Always provide a simulation option for demo */}
             <button 
               onClick={onSimulateConnect} 
               className={`w-full ${isMobile ? 'bg-gray-100 text-gray-700' : 'bg-gradient-to-r from-[#7857FF] to-[#6447CC] text-white'} py-3 px-8 rounded-xl font-medium hover:shadow-lg transition-all duration-300`}
             >
-              {isMobile ? 'Tiếp tục dùng bản Demo' : 'Simulate Connection (Demo)'}
+              {isMobile ? 'Continue with Demo' : 'Simulate Connection (Demo)'}
             </button>
           </div>
         </div>
