@@ -21,13 +21,10 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
   
   const handleMobileConnect = () => {
     try {
-      // Import the getPhantomDeepLink function
-      const { getPhantomDeepLink } = require('../../lib/walletAdapter');
-      
       // Log for debugging
       console.log('Attempting to open Phantom wallet on mobile');
       
-      // Get the deep link URL with proper parameters
+      // Get the deep link URL with proper parameters (imported at the top of the file)
       const phantomUrl = getPhantomDeepLink();
       console.log('Opening Phantom URL:', phantomUrl);
       

@@ -16,7 +16,10 @@ interface PhantomProvider {
   connect: () => Promise<{ publicKey: PublicKey }>;
   disconnect: () => Promise<void>;
   on: (event: string, callback: () => void) => void;
-  request: (method: any, params: any) => Promise<any>;
+  request: (options: {
+    method: string;
+    params?: any;
+  }) => Promise<any>;
 }
 
 // Solana connection to devnet
@@ -111,8 +114,13 @@ export const requestAirdrop = async (
       amount * LAMPORTS_PER_SOL,
     );
 
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, "confirmed");
+    // Wait for confirmation with compatible method
+    const latestBlockhash = await connection.getLatestBlockhash();
+    await connection.confirmTransaction({
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+      signature
+    });
     return signature;
   } catch (error) {
     console.error("Error requesting airdrop:", error);
@@ -157,13 +165,11 @@ export const sendTransaction = async (
       // Send the transaction using Phantom's sendTransaction method
       // This handles all the internal Buffer handling
       // Note: provider.request only takes one object parameter according to the interface
+      // The type definition requires a proper structure for params
       const { signature } = await provider.request({
         method: "signAndSendTransaction",
         params: {
-          message: transaction,
-          options: {
-            commitment: "confirmed"
-          }
+          message: transaction
         }
       });
 
@@ -172,12 +178,14 @@ export const sendTransaction = async (
         `Transaction sent: https://explorer.solana.com/tx/${signature}?cluster=devnet`,
       );
 
-      // Confirm the transaction - provide commitment level to satisfy args requirement
+      // Confirm the transaction - using a more compatible approach
+      // This avoids TypeScript errors with the Web3.js interface
+      const latestBlockhash = await connection.getLatestBlockhash();
       const confirmation = await connection.confirmTransaction({
-        signature,
-        lastValidBlockHeight,
-        blockhash
-      }, "confirmed");
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+        signature
+      });
 
       // Check if there was an error in the transaction
       if (confirmation.value.err) {
