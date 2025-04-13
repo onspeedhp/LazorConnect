@@ -8,7 +8,7 @@ import TransactionModal from '@/components/modals/TransactionModal';
 import BiometricPrompt from '@/components/modals/BiometricPrompt';
 import { Transaction as TransactionType } from '@shared/schema';
 import LazorKit from '@/lib/lazorKit';
-import { connectWallet, disconnectWallet } from '@/lib/walletAdapter';
+import { connectWallet, disconnectWallet, requestAirdrop, getWalletBalance } from '@/lib/walletAdapter';
 import { useToast } from "@/hooks/use-toast";
 
 type ConnectionMethod = 'passkey' | 'phantom' | null;
@@ -19,7 +19,8 @@ export default function Home() {
   const [connectionMethod, setConnectionMethod] = useState<ConnectionMethod>(null);
   const [walletAddress, setWalletAddress] = useState<string>('');
   const [transactions, setTransactions] = useState<TransactionType[]>([]);
-  const [balance, setBalance] = useState<number>(2.45); // Mockup for demo
+  const [balance, setBalance] = useState<number>(0);
+  const [isAirdropLoading, setIsAirdropLoading] = useState<boolean>(false);
 
   // Modal states
   const [showPasskeyModal, setShowPasskeyModal] = useState<boolean>(false);
@@ -85,6 +86,78 @@ export default function Home() {
     };
   }, []);
 
+  // Load wallet balance when connected
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (isConnected && walletAddress) {
+        try {
+          let currentBalance = 0;
+          if (connectionMethod === 'phantom') {
+            currentBalance = await getWalletBalance(walletAddress);
+          } else if (connectionMethod === 'passkey') {
+            currentBalance = await LazorKit.getBalance();
+          }
+          setBalance(currentBalance);
+        } catch (error) {
+          console.error('Error fetching balance:', error);
+        }
+      }
+    };
+    
+    fetchBalance();
+  }, [isConnected, walletAddress, connectionMethod]);
+
+  const handleRequestAirdrop = async () => {
+    if (!isConnected || isAirdropLoading) return;
+    
+    setIsAirdropLoading(true);
+    toast({
+      title: "Requesting Airdrop",
+      description: "Requesting 1 SOL from the Solana Devnet...",
+    });
+    
+    try {
+      let signature = null;
+      if (connectionMethod === 'phantom') {
+        signature = await requestAirdrop(walletAddress, 1);
+      } else if (connectionMethod === 'passkey') {
+        signature = await LazorKit.requestAirdrop(1);
+      }
+      
+      if (signature) {
+        // Update balance after successful airdrop
+        if (connectionMethod === 'phantom') {
+          const newBalance = await getWalletBalance(walletAddress);
+          setBalance(newBalance);
+        } else {
+          const newBalance = await LazorKit.getBalance();
+          setBalance(newBalance);
+        }
+        
+        toast({
+          title: "Airdrop Successful",
+          description: "1 SOL has been added to your wallet!",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Airdrop Failed",
+          description: "Failed to request airdrop from Solana Devnet.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error requesting airdrop:", error);
+      toast({
+        title: "Airdrop Error",
+        description: "An error occurred while requesting the airdrop.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAirdropLoading(false);
+    }
+  };
+  
   const handleConnectPasskey = () => {
     setShowPasskeyModal(true);
   };
@@ -257,6 +330,7 @@ export default function Home() {
             walletAddress={walletAddress}
             onDisconnect={handleDisconnect}
             onSendTransaction={handleSendTransaction}
+            onRequestAirdrop={handleRequestAirdrop}
             balance={balance}
             transactions={transactions}
           />

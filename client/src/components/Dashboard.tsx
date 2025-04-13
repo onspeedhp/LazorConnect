@@ -7,6 +7,7 @@ interface DashboardProps {
   walletAddress: string;
   onDisconnect: () => void;
   onSendTransaction: () => void;
+  onRequestAirdrop: () => void;
   balance: number;
   transactions: TransactionType[];
 }
@@ -16,6 +17,7 @@ const Dashboard: FC<DashboardProps> = ({
   walletAddress,
   onDisconnect,
   onSendTransaction,
+  onRequestAirdrop,
   balance,
   transactions
 }) => {
@@ -78,6 +80,16 @@ const Dashboard: FC<DashboardProps> = ({
             <p className="text-sm text-[#9FA3B5]">Balance</p>
             <p className="text-2xl font-bold">{balance.toFixed(2)} SOL</p>
             <p className="text-xs text-[#9FA3B5]">≈ ${(balance * 20).toFixed(2)} USD</p>
+            
+            {balance < 0.1 && (
+              <button
+                onClick={onRequestAirdrop}
+                className="mt-2 px-3 py-1.5 text-xs rounded-lg bg-[#00D170] text-white hover:bg-[#00B060] transition-colors flex items-center"
+              >
+                <i className="fas fa-coins mr-1.5"></i>
+                Request Airdrop
+              </button>
+            )}
           </div>
           <div className="text-right">
             <p className="text-xs text-[#00D170]">Solana Devnet</p>
