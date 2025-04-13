@@ -1,6 +1,7 @@
 import { FC, useState } from 'react';
 import { ClientTransaction } from '@shared/schema';
 import { useToast } from "@/hooks/use-toast";
+import Buffer from "buffer"
 
 interface DashboardProps {
   connectionMethod: 'passkey' | 'phantom';

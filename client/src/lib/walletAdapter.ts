@@ -1,4 +1,11 @@
-import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
+import { Buffer } from "./buffer-polyfill";
 
 interface PhantomProvider {
   publicKey: PublicKey | null;
@@ -14,7 +21,7 @@ interface PhantomProvider {
 }
 
 // Solana connection to devnet
-const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
 // Checks if Phantom is installed and accessible
 export const getProvider = (): PhantomProvider | undefined => {
@@ -26,7 +33,7 @@ export const getProvider = (): PhantomProvider | undefined => {
       return provider as PhantomProvider;
     }
   }
-  
+
   // If on mobile, deeplinking might be required
   // as Phantom might not be available as a window object
   return undefined;
@@ -34,21 +41,21 @@ export const getProvider = (): PhantomProvider | undefined => {
 
 export const getPhantomDeepLink = (): string => {
   // Base phantom URL for mobile connection
-  return 'https://phantom.app/ul/v1/connect';
+  return "https://phantom.app/ul/v1/connect";
 };
 
 export const connectWallet = async (): Promise<string | undefined> => {
   try {
     const provider = getProvider();
-    
+
     if (!provider) {
       // If on mobile, redirect to app store or prompt to install
       if (/Mobi|Android/i.test(navigator.userAgent)) {
-        window.open('https://phantom.app/download', '_blank');
+        window.open("https://phantom.app/download", "_blank");
       }
       return undefined;
     }
-    
+
     const { publicKey } = await provider.connect();
     return publicKey.toString();
   } catch (error) {
@@ -78,16 +85,19 @@ export const getWalletBalance = async (publicKey: string): Promise<number> => {
   }
 };
 
-export const requestAirdrop = async (publicKey: string, amount: number = 1): Promise<string | null> => {
+export const requestAirdrop = async (
+  publicKey: string,
+  amount: number = 1,
+): Promise<string | null> => {
   try {
     const pubKey = new PublicKey(publicKey);
     const signature = await connection.requestAirdrop(
       pubKey,
-      amount * LAMPORTS_PER_SOL
+      amount * LAMPORTS_PER_SOL,
     );
-    
+
     // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
+    await connection.confirmTransaction(signature, "confirmed");
     return signature;
   } catch (error) {
     console.error("Error requesting airdrop:", error);
@@ -98,21 +108,22 @@ export const requestAirdrop = async (publicKey: string, amount: number = 1): Pro
 export const sendTransaction = async (
   senderPublicKey: string,
   recipientPublicKey: string,
-  amount: number
+  amount: number,
 ): Promise<string | undefined> => {
   try {
     const provider = getProvider();
     if (!provider) {
       throw new Error("Phantom wallet not connected or not installed");
     }
-    
+
     // Let's use a more direct approach with Phantom's provider
     const sender = new PublicKey(senderPublicKey);
     const recipient = new PublicKey(recipientPublicKey);
-    
+
     // Get a recent blockhash
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    
+    const { blockhash, lastValidBlockHeight } =
+      await connection.getLatestBlockhash();
+
     // Prepare transaction data
     const transaction = {
       blockhash,
@@ -123,40 +134,46 @@ export const sendTransaction = async (
           fromPubkey: sender,
           toPubkey: recipient,
           lamports: amount * LAMPORTS_PER_SOL,
-        })
-      ]
+        }),
+      ],
     };
-    
+
     try {
       // Send the transaction using Phantom's sendTransaction method
       // This handles all the internal Buffer handling
       const { signature } = await provider.request({
         method: "signAndSendTransaction",
         params: {
-          message: transaction
-        }
+          message: transaction,
+        },
       });
-      
+
       // Log the transaction URL
-      console.log(`Transaction sent: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
-      
+      console.log(
+        `Transaction sent: https://explorer.solana.com/tx/${signature}?cluster=devnet`,
+      );
+
       // Confirm the transaction
       const confirmation = await connection.confirmTransaction({
-        signature, 
-        blockhash, 
-        lastValidBlockHeight
+        signature,
+        blockhash,
+        lastValidBlockHeight,
       });
-      
+
       // Check if there was an error in the transaction
       if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+        throw new Error(
+          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
+        );
       }
-      
+
       return signature;
     } catch (error: any) {
       // This catches errors in the signing process, like when a user rejects the transaction
       console.error("Error signing or sending transaction:", error);
-      throw new Error(`Transaction signing failed: ${error.message || 'Unknown error'}`);
+      throw new Error(
+        `Transaction signing failed: ${error.message || "Unknown error"}`,
+      );
     }
   } catch (error) {
     console.error("Error in transaction process:", error);
