@@ -1,6 +1,5 @@
 import { FC, useEffect, useState } from 'react';
-import { getPhantomDeepLink } from '@/lib/walletAdapter';
-import { usePhantomDeepLink } from '@/lib/phantomUtils/deepLinkConnection';
+import { getPhantomConnectUrl } from '@/lib/simplePhantomConnect';
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -10,7 +9,6 @@ interface WalletModalProps {
 
 const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect }) => {
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  const { connect: connectWithDeepLink } = usePhantomDeepLink();
   
   useEffect(() => {
     // Check if user is on mobile device
@@ -24,31 +22,24 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
   const handleMobileConnect = () => {
     try {
       // Log for debugging
-      console.log('Attempting to open Phantom wallet on mobile with encrypted deeplink');
+      console.log('Attempting to open Phantom wallet using simple deep link');
       
-      // Connect using the new deeplink approach with encryption
-      connectWithDeepLink();
+      // Get the Phantom connect URL
+      const phantomUrl = getPhantomConnectUrl();
+      
+      // Show a prompt about what to expect
+      if (isMobile) {
+        console.log("Opening Phantom app:", phantomUrl);
+      }
+      
+      // Open the Phantom wallet
+      window.location.href = phantomUrl;
       
       // Close the modal
       setTimeout(() => onClose(), 500);
     } catch (error) {
-      // Fall back to the simpler approach if the encrypted one fails
-      console.error('Error with encrypted deeplink, falling back to simple deeplink:', error);
-      
-      try {
-        // Get the simple deep link URL
-        const phantomUrl = getPhantomDeepLink();
-        console.log('Opening simple Phantom URL:', phantomUrl);
-        
-        // Redirect to Phantom app
-        window.location.href = phantomUrl;
-        
-        // Close the modal
-        setTimeout(() => onClose(), 500);
-      } catch (fallbackError) {
-        console.error('Error opening Phantom mobile app:', fallbackError);
-        alert('Error opening Phantom app: ' + (fallbackError instanceof Error ? fallbackError.message : String(fallbackError)));
-      }
+      console.error('Error opening Phantom mobile app:', error);
+      alert('Error opening Phantom app: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 

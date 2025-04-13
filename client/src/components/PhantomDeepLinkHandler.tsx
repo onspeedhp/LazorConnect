@@ -15,10 +15,23 @@ const PhantomDeepLinkHandler: FC = () => {
     // Process initial URL if it exists
     const processInitialUrl = () => {
       const url = window.location.href;
-      if (url.includes('onConnect') || 
-          url.includes('onDisconnect') || 
-          url.includes('onSignAndSendTransaction')) {
-        console.log('Processing initial deep link URL:', url);
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Check if this is a response from Phantom
+      const hasPhantomParam = urlParams.get('phantom');
+      const hasErrorCode = urlParams.get('errorCode');
+      const hasData = urlParams.get('data');
+      const hasNonce = urlParams.get('nonce');
+      
+      // Look for Phantom parameters in the URL
+      if (hasPhantomParam || hasErrorCode || hasData || hasNonce) {
+        console.log('Processing initial deep link URL with query params:', { 
+          phantom: hasPhantomParam,
+          errorCode: hasErrorCode,
+          hasData: !!hasData,
+          hasNonce: !!hasNonce
+        });
+        
         setDeepLink(url);
         
         // Clean up the URL after processing
@@ -30,15 +43,25 @@ const PhantomDeepLinkHandler: FC = () => {
     // Process any initial deep link URL
     processInitialUrl();
     
-    // Listen for URL changes (in case the app is already running)
-    // Note: This would be handled by a library like expo-linking in React Native
-    // In a web app, we need to be more creative
+    // Listen for URL changes (for when returning from Phantom app)
     const checkForUrlChanges = () => {
       const currentUrl = window.location.href;
-      if (currentUrl.includes('onConnect') || 
-          currentUrl.includes('onDisconnect') || 
-          currentUrl.includes('onSignAndSendTransaction')) {
-        console.log('URL changed to deep link URL:', currentUrl);
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Check if this is a response from Phantom
+      const hasPhantomParam = urlParams.get('phantom');
+      const hasErrorCode = urlParams.get('errorCode');
+      const hasData = urlParams.get('data');
+      const hasNonce = urlParams.get('nonce');
+      
+      if (hasPhantomParam || hasErrorCode || hasData || hasNonce) {
+        console.log('URL changed with Phantom parameters:', {
+          phantom: hasPhantomParam,
+          errorCode: hasErrorCode,
+          hasData: !!hasData,
+          hasNonce: !!hasNonce
+        });
+        
         setDeepLink(currentUrl);
         
         // Clean up the URL after processing

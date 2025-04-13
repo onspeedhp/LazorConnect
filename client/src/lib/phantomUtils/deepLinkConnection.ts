@@ -15,9 +15,19 @@ let onSignAndSendTransactionRedirectLink = '';
 // Create proper URLs with the application's origin
 if (typeof window !== 'undefined') {
   const origin = window.location.origin;
-  onConnectRedirectLink = `${origin}/onConnect`;
-  onDisconnectRedirectLink = `${origin}/onDisconnect`;
-  onSignAndSendTransactionRedirectLink = `${origin}/onSignAndSendTransaction`;
+  const path = window.location.pathname;
+  
+  // Make sure to create absolute URLs including the current path
+  // This helps with returning to the exact same page
+  onConnectRedirectLink = `${origin}${path}?phantom=connect`;
+  onDisconnectRedirectLink = `${origin}${path}?phantom=disconnect`;
+  onSignAndSendTransactionRedirectLink = `${origin}${path}?phantom=transaction`;
+  
+  console.log('Redirect links configured as:', {
+    connect: onConnectRedirectLink,
+    disconnect: onDisconnectRedirectLink,
+    transaction: onSignAndSendTransactionRedirectLink
+  });
 }
 
 // Connection singleton
@@ -240,23 +250,39 @@ export function usePhantomDeepLink() {
     
     try {
       const url = new URL(deepLink);
+      const urlParams = new URLSearchParams(url.search);
+      const phantomParam = urlParams.get('phantom');
+      const hasData = urlParams.get('data');
+      const hasNonce = urlParams.get('nonce');
+      
+      console.log('Processing deeplink URL:', {
+        url: deepLink,
+        phantomParam,
+        hasData: !!hasData,
+        hasNonce: !!hasNonce
+      });
       
       // Handle connect response
-      if (url.pathname.includes("onConnect")) {
+      if (phantomParam === 'connect' || url.search.includes('phantom_encryption_public_key')) {
+        console.log('Handling connect response...');
         const publicKey = phantomDeepLink.handleConnectResponse(url);
         setWalletAddress(publicKey);
+        console.log('Connection result:', publicKey);
       }
       
       // Handle disconnect response
-      if (url.pathname.includes("onDisconnect")) {
+      if (phantomParam === 'disconnect') {
+        console.log('Handling disconnect response...');
         phantomDeepLink.handleDisconnectResponse();
         setWalletAddress(null);
       }
       
       // Handle transaction response
-      if (url.pathname.includes("onSignAndSendTransaction")) {
+      if (phantomParam === 'transaction') {
+        console.log('Handling transaction response...');
         const signature = phantomDeepLink.handleTransactionResponse(url);
         setTransactionSignature(signature);
+        console.log('Transaction result:', signature);
       }
     } catch (error) {
       console.error("Error processing deep link:", error);
