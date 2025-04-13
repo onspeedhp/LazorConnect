@@ -3,6 +3,7 @@ import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } f
 interface PhantomProvider {
   publicKey: PublicKey | null;
   isConnected: boolean | null;
+  isPhantom?: boolean;
   signTransaction: (transaction: Transaction) => Promise<Transaction>;
   signAllTransactions: (transactions: Transaction[]) => Promise<Transaction[]>;
   signMessage: (message: Uint8Array) => Promise<{ signature: Uint8Array }>;
@@ -12,13 +13,17 @@ interface PhantomProvider {
   request: (method: any, params: any) => Promise<any>;
 }
 
+// Solana connection to devnet
+const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+
 // Checks if Phantom is installed and accessible
 export const getProvider = (): PhantomProvider | undefined => {
   if ("solana" in window) {
     // @ts-ignore
     const provider = window.solana;
-    if (provider.isPhantom) {
-      return provider;
+    // @ts-ignore
+    if (provider && provider.isPhantom) {
+      return provider as PhantomProvider;
     }
   }
   
@@ -65,12 +70,28 @@ export const disconnectWallet = async (): Promise<void> => {
 
 export const getWalletBalance = async (publicKey: string): Promise<number> => {
   try {
-    const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
     const balance = await connection.getBalance(new PublicKey(publicKey));
     return balance / LAMPORTS_PER_SOL;
   } catch (error) {
     console.error("Error getting balance:", error);
     return 0;
+  }
+};
+
+export const requestAirdrop = async (publicKey: string, amount: number = 1): Promise<string | null> => {
+  try {
+    const pubKey = new PublicKey(publicKey);
+    const signature = await connection.requestAirdrop(
+      pubKey,
+      amount * LAMPORTS_PER_SOL
+    );
+    
+    // Wait for confirmation
+    await connection.confirmTransaction(signature, 'confirmed');
+    return signature;
+  } catch (error) {
+    console.error("Error requesting airdrop:", error);
+    return null;
   }
 };
 

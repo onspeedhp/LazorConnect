@@ -8,6 +8,9 @@ interface PasskeyCredential {
   publicKey: string;
 }
 
+// Create a persistent Solana connection
+const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+
 class LazorKit {
   private static instance: LazorKit;
   private isConnected: boolean = false;
@@ -15,7 +18,7 @@ class LazorKit {
   private connection: Connection;
   
   private constructor() {
-    this.connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+    this.connection = connection;
   }
   
   public static getInstance(): LazorKit {
@@ -65,6 +68,25 @@ class LazorKit {
     } catch (error) {
       console.error("Error getting balance:", error);
       return 0;
+    }
+  }
+  
+  public async requestAirdrop(amount: number = 1): Promise<string | null> {
+    if (!this.publicKey) return null;
+    
+    try {
+      const pubKey = new PublicKey(this.publicKey);
+      const signature = await this.connection.requestAirdrop(
+        pubKey,
+        amount * LAMPORTS_PER_SOL
+      );
+      
+      // Wait for confirmation
+      await this.connection.confirmTransaction(signature, 'confirmed');
+      return signature;
+    } catch (error) {
+      console.error("Error requesting airdrop:", error);
+      return null;
     }
   }
   
