@@ -319,14 +319,8 @@ export default function Home() {
     setBiometricAction("connect");
     setShowBiometricPrompt(true);
   };
-
-  const handleSimulateWalletConnect = () => {
-    setShowWalletModal(false);
-    simulateDelay(() => {
-      connectWithBackpack();
-    }, 500);
-  };
-
+  
+  // Helper function for simulating delays in UI
   const simulateDelay = (callback: () => void, delay: number) => {
     setTimeout(callback, delay);
   };
@@ -500,7 +494,6 @@ export default function Home() {
       <WalletModal
         isOpen={showWalletModal}
         onClose={() => setShowWalletModal(false)}
-        onSimulateConnect={handleSimulateWalletConnect}
       />
 
       <TransactionModal

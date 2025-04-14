@@ -223,7 +223,7 @@ export function usePhantomWallet() {
     return JSON.parse(Buffer.from(decryptedData).toString("utf8"));
   };
 
-  // Connect to Phantom wallet
+  // Connect to Phantom wallet via mobile deeplink
   const connectPhantom = useCallback((): string => {
     try {
       // Create encryption keypair if it doesn't exist
@@ -250,17 +250,8 @@ export function usePhantomWallet() {
       params.append("app_name", "Lazor vs Phantom Demo");
       params.append("return_url", window.location.origin);
       
-      // Figure out which URL format to use based on the environment
-      let url;
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      
-      if (isMobile) {
-        // Mobile devices - use deep link
-        url = `phantom://v1/connect?${params.toString()}`;
-      } else {
-        // Desktop or other devices - use universal link format which may work better
-        url = `https://phantom.app/ul/v1/connect?${params.toString()}`;
-      }
+      // Always use deep link for mobile
+      const url = `phantom://v1/connect?${params.toString()}`;
       
       // Log the URL for debugging
       console.log("Redirecting to Phantom:", url);
@@ -311,24 +302,14 @@ export function usePhantomWallet() {
             payload: bs58.encode(encryptedPayload)
           });
 
-          // Figure out which URL format to use based on the environment
-          let url;
-          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-          
-          if (isMobile) {
-            // Mobile devices - use deep link
-            url = `phantom://v1/disconnect?${params.toString()}`;
-          } else {
-            // Desktop or other devices - use universal link
-            url = `https://phantom.app/ul/v1/disconnect?${params.toString()}`;
-          }
+          // Always use deep link for mobile
+          const url = `phantom://v1/disconnect?${params.toString()}`;
           
           // Log the URL for debugging
           console.log("Disconnecting from Phantom:", url);
           
-          // In a real app, we would redirect to Phantom here
-          // but for our demo we'll just clear the connection state
-          // window.location.href = url;
+          // Redirect to Phantom
+          window.location.href = url;
         } catch (encryptError) {
           console.error("Error encrypting disconnect payload:", encryptError);
         }
@@ -419,17 +400,8 @@ export function usePhantomWallet() {
       params.append("receiver", recipientPublicKey);
       params.append("amount", amount.toString());
       
-      // Figure out which URL format to use based on the environment
-      let url;
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      
-      if (isMobile) {
-        // Mobile devices - use deep link
-        url = `phantom://v1/signTransaction?${params.toString()}`;
-      } else {
-        // Desktop or other devices - use universal link
-        url = `https://phantom.app/ul/v1/signTransaction?${params.toString()}`;
-      }
+      // Always use deep link for mobile
+      const url = `phantom://v1/signTransaction?${params.toString()}`;
       
       // Log transaction details
       console.log(`Sending ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`);

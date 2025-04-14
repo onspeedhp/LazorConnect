@@ -1,18 +1,20 @@
 import { FC } from 'react';
-import { connectPhantom } from '@/lib/phantomAdapter';
+import { usePhantomWallet } from '@/hooks/use-phantom-wallet';
 
 interface WalletModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSimulateConnect: () => void;
 }
 
-const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect }) => {
+const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
+  
+  const { connectPhantom } = usePhantomWallet();
 
-  const handleDirectConnect = () => {
-    // This will redirect to Phantom for real connection
+  const handleConnect = () => {
+    // This will redirect to Phantom mobile app via deeplink
     connectPhantom();
+    onClose();
   };
 
   return (
@@ -29,11 +31,11 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
             <img src="https://phantom.app/apple-touch-icon.png" alt="Phantom Logo" className="w-10 h-10 rounded-full" />
           </div>
           <h3 className="text-xl font-bold mb-2">Connect to Phantom</h3>
-          <p className="text-sm text-[#474A57]">Choose how you want to connect with Phantom wallet</p>
+          <p className="text-sm text-[#474A57]">Connect with your Phantom wallet on mobile</p>
         </div>
         <div className="border border-gray-200 rounded-xl p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium">Connection Options</span>
+            <span className="text-sm font-medium">Connection Process</span>
             <div className="flex items-center">
               <div className="h-2 w-2 rounded-full bg-[#00D170] mr-2"></div>
               <span className="text-xs text-[#00D170]">Ready</span>
@@ -44,35 +46,28 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
               <div className="w-5 h-5 rounded-full bg-[#00D170] flex items-center justify-center mr-2 text-white text-xs">
                 <i className="fas fa-check"></i>
               </div>
-              <span>Connection initialized</span>
+              <span>Deeplink prepared</span>
             </li>
             <li className="flex items-center">
-              <div className="w-5 h-5 rounded-full bg-[#00D170] flex items-center justify-center mr-2 text-white text-xs">
-                <i className="fas fa-check"></i>
+              <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
+                2
               </div>
-              <span>Deeplink prepared</span>
+              <span>Redirect to Phantom app</span>
             </li>
             <li className="flex items-center">
               <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
                 3
               </div>
-              <span>Waiting for connection approval</span>
+              <span>Approve connection</span>
             </li>
           </ol>
         </div>
-        <div className="flex flex-col space-y-3">
+        <div className="flex flex-col">
           <button 
-            onClick={handleDirectConnect} 
+            onClick={handleConnect} 
             className="bg-gradient-to-r from-[#4e44ce] to-[#735cff] py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#735cff]/30 transition-all duration-300"
           >
             Connect with Phantom
-          </button>
-          
-          <button 
-            onClick={onSimulateConnect} 
-            className="border border-[#735cff] text-[#735cff] py-3 px-8 rounded-xl font-medium hover:bg-[#735cff]/5 transition-all duration-300"
-          >
-            Simulate Connection (Demo)
           </button>
         </div>
       </div>
