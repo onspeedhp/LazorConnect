@@ -142,25 +142,14 @@ export default function Home() {
               description: "Successfully connected with Phantom wallet!",
             });
           } else {
-            // As a last resort, ask the user
-            const manualPublicKey = prompt("Could not automatically detect your wallet. Please paste your Phantom wallet address:", "");
+            // Show error message if we can't detect the wallet address
+            console.error("Could not automatically detect wallet address");
             
-            if (manualPublicKey && manualPublicKey.trim() !== "") {
-              setWalletAddress(manualPublicKey.trim());
-              setConnectionMethod("backpack");
-              setIsConnected(true);
-              
-              toast({
-                title: "Wallet Connected",
-                description: "Successfully connected with Phantom wallet!",
-              });
-            } else {
-              toast({
-                title: "Connection Failed",
-                description: "Could not retrieve your Phantom wallet address.",
-                variant: "destructive",
-              });
-            }
+            toast({
+              title: "Connection Failed",
+              description: "Could not retrieve your Phantom wallet address. Please try again.",
+              variant: "destructive",
+            });
           }
         }
       } catch (error) {

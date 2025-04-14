@@ -9,8 +9,8 @@ const connection = new Connection('https://api.devnet.solana.com');
 // In-memory storage for connection state
 let dappKeyPair: nacl.BoxKeyPair | null = null;
 let sharedSecret: Uint8Array | null = null;
-let session: string | null = null;
-let phantomWalletPublicKey: string | null = null;
+let session: string = "";
+let phantomWalletPublicKey: string = "";
 
 // Generate encryption keypair for secure communication with Phantom
 const getOrCreateDappKeyPair = (): nacl.BoxKeyPair => {
@@ -51,83 +51,115 @@ const decryptPayload = (data: string, nonce: string): any => {
   return JSON.parse(Buffer.from(decryptedData).toString("utf8"));
 };
 
-// Process connection response from Phantom
+/**
+ * Process connection response from Phantom wallet
+ * This implementation focuses on handling the callback URL and extracting 
+ * the user's wallet public key for display and interaction
+ */
 export const processConnectionResponse = (url: string): { publicKey: string; session: string } | null => {
   try {
+    console.log("Processing Phantom wallet connection callback URL:", url);
+    
     const urlObj = new URL(url);
     const params = urlObj.searchParams;
+    
+    // Debug: Log all URL parameters to see what we received
+    console.log("Callback URL parameters:");
+    params.forEach((value, key) => {
+      console.log(`  ${key}: ${value.substring(0, 20)}${value.length > 20 ? '...' : ''}`);
+    });
 
-    // Check for errors
+    // Check for errors first
     if (params.get("errorCode")) {
       console.error("Phantom connection error:", params.get("errorMessage"));
       return null;
     }
 
-    // Check for direct public key in URL (some wallet implementations do this)
-    const directPublicKey = params.get("phantom_address") || params.get("public_key");
-    if (directPublicKey) {
+    // Try multiple approaches to find the wallet public key
+    
+    // 1. Look for direct public key parameters (simplest case)
+    const directPublicKeys = [
+      params.get("phantom_address"),
+      params.get("public_key"),
+      params.get("address"),
+      params.get("wallet"),
+      params.get("account")
+    ].filter(Boolean);
+    
+    if (directPublicKeys.length > 0) {
+      const directPublicKey = directPublicKeys[0] as string;
       console.log("Found direct public key in URL:", directPublicKey);
       phantomWalletPublicKey = directPublicKey;
-      session = "direct-connection"; // Simplified session handling
+      session = "direct-connection";
       
       return {
         publicKey: directPublicKey,
         session: "direct-connection"
       };
     }
+    
+    // 2. Look for Solana-specific address formats
+    const allParamValues: string[] = [];
+    params.forEach((value) => allParamValues.push(value));
+    
+    // Try to find any parameter that looks like a Solana public key
+    // Solana addresses are base58 encoded and typically 32-44 characters
+    const possibleAddresses = allParamValues.filter(value => {
+      // Check if it looks like a Solana address (base58, right length)
+      return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
+    });
+    
+    if (possibleAddresses.length > 0) {
+      const solanaAddress = possibleAddresses[0];
+      console.log("Found possible Solana address in parameters:", solanaAddress);
+      phantomWalletPublicKey = solanaAddress;
+      session = "inferred-connection";
+      
+      return {
+        publicKey: solanaAddress,
+        session: "inferred-connection"
+      };
+    }
 
-    // Try encrypted data flow
+    // 3. Try the standard encrypted flow
     const phantomEncryptionPublicKey = params.get("phantom_encryption_public_key");
     const data = params.get("data");
     const nonce = params.get("nonce");
     
-    if (!phantomEncryptionPublicKey || !data || !nonce || !dappKeyPair) {
-      console.log("Missing encryption parameters for secure connection");
+    if (phantomEncryptionPublicKey && data && nonce && dappKeyPair) {
+      console.log("Attempting encrypted connection method");
       
-      // If we reach here, it means we don't have either direct connection or proper encrypted connection
-      // Let's check if the URL has any information that might help us identify a wallet connection
-      
-      // In real world this would be more robust, but for demo:
-      if (params.has("phantom_wallet") || params.has("phantom")) {
-        // Extract any potential wallet information
-        const accountInfo = params.get("account") || params.get("phantom_wallet") || params.get("wallet_address");
-        if (accountInfo) {
-          console.log("Found potential wallet info:", accountInfo);
-          return {
-            publicKey: accountInfo,
-            session: "inferred-connection"
-          };
-        }
+      try {
+        // Create shared secret
+        const sharedSecretDapp = nacl.box.before(
+          bs58.decode(phantomEncryptionPublicKey),
+          dappKeyPair.secretKey
+        );
+        
+        // Decrypt the data
+        const connectData = decryptPayload(data, nonce);
+        
+        // Save connection state
+        sharedSecret = sharedSecretDapp;
+        session = connectData.session;
+        phantomWalletPublicKey = connectData.public_key;
+        
+        console.log("Successfully decrypted connection data:", connectData.public_key);
+        
+        return {
+          publicKey: connectData.public_key,
+          session: connectData.session
+        };
+      } catch (decryptError) {
+        console.error("Error decrypting connection payload:", decryptError);
       }
-      
-      return null;
+    } else {
+      console.log("Missing encryption parameters, cannot use encrypted connection flow");
     }
-
-    // Create shared secret for encrypted connection
-    const sharedSecretDapp = nacl.box.before(
-      bs58.decode(phantomEncryptionPublicKey),
-      dappKeyPair.secretKey
-    );
-
-    try {
-      // Decrypt connection data
-      const connectData = decryptPayload(data, nonce);
-
-      // Save connection state
-      sharedSecret = sharedSecretDapp;
-      session = connectData.session;
-      phantomWalletPublicKey = connectData.public_key;
-      
-      console.log("Successfully decrypted wallet connection:", connectData.public_key);
-      
-      return {
-        publicKey: connectData.public_key,
-        session: connectData.session
-      };
-    } catch (decryptError) {
-      console.error("Error decrypting payload:", decryptError);
-      return null;
-    }
+    
+    // If we reach here, we couldn't find the public key
+    console.error("Could not find wallet public key in the callback URL");
+    return null;
   } catch (error) {
     console.error("Error processing connection response:", error);
     return null;
@@ -140,16 +172,28 @@ export const connectPhantom = (): string => {
     // Create encryption keypair if it doesn't exist
     const keyPair = getOrCreateDappKeyPair();
     
+    // Create a connection ID to help correlate the request and response
+    const connectionId = Math.random().toString(36).substring(2, 15);
+    
+    // Generate a redirect URL with additional parameters for better tracking
+    const redirectUrl = new URL(`${window.location.origin}${window.location.pathname}`);
+    redirectUrl.searchParams.append("action", "phantom_connect");
+    redirectUrl.searchParams.append("connection_id", connectionId);
+    redirectUrl.searchParams.append("timestamp", Date.now().toString());
+    
     // Prepare connection parameters
     const params = new URLSearchParams({
       dapp_encryption_public_key: bs58.encode(keyPair.publicKey),
       cluster: "devnet",
       app_url: window.location.origin,
-      redirect_link: `${window.location.origin}${window.location.pathname}?action=phantom_connect`
+      redirect_link: redirectUrl.toString()
     });
-
+    
+    // Add some additional parameters to make troubleshooting easier
+    params.append("app_name", "Lazor vs Phantom Demo");
+    params.append("return_url", window.location.origin);
+    
     // Figure out which URL format to use based on the environment
-    // On mobile, we want to use deep links, on desktop we might use universal links
     let url;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     
@@ -163,6 +207,14 @@ export const connectPhantom = (): string => {
     
     // Log the URL for debugging
     console.log("Redirecting to Phantom:", url);
+    
+    // Store connection ID in localStorage for verification
+    try {
+      localStorage.setItem("phantom_connection_id", connectionId);
+      localStorage.setItem("phantom_connection_timestamp", Date.now().toString());
+    } catch (storageError) {
+      console.warn("Could not store connection data in localStorage:", storageError);
+    }
     
     // Redirect to Phantom
     window.location.href = url;
@@ -233,8 +285,8 @@ export const disconnectPhantom = (): void => {
     // Always clear connection state
     dappKeyPair = null;
     sharedSecret = null;
-    session = null;
-    phantomWalletPublicKey = null;
+    session = "";
+    phantomWalletPublicKey = "";
   } catch (error) {
     console.error("Error disconnecting from Phantom:", error);
     
