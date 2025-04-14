@@ -38,9 +38,12 @@ const BackpackResponseHandler: FC<BackpackResponseHandlerProps> = ({
       
       if (!backpackParam) return;
       
-      console.log(`Detected Backpack ${backpackParam} response in URL`);
+      console.log(`Detected Backpack ${backpackParam} response in URL:`, 
+        Object.fromEntries(url.searchParams.entries()));
       
       // Process response based on type
+      // According to Backpack docs, the response parameters will be appended to our redirect_link URL
+      // as query parameters, which we need to parse and handle accordingly
       switch (backpackParam) {
         case 'connect':
           handleConnectResponse();
@@ -134,11 +137,25 @@ const BackpackResponseHandler: FC<BackpackResponseHandlerProps> = ({
     }
   };
   
-  // Clear response URL
+  // Clear response URL - remove all parameters after processing
   const clearResponseUrl = () => {
     const url = new URL(window.location.href);
-    url.searchParams.delete('backpack');
+    
+    // First save the backpack parameter value
+    const backpackParam = url.searchParams.get('backpack');
+    
+    // Clear all parameters (could include wallet_encryption_public_key, data, nonce, session, etc.)
+    url.search = '';
+    
+    // Re-add just the backpack parameter but with empty value to mark as processed
+    if (backpackParam) {
+      url.searchParams.set('backpack', 'processed');
+    }
+    
+    // Update the URL without reloading the page
     window.history.replaceState({}, document.title, url.toString());
+    
+    console.log('URL parameters cleared after processing Backpack response');
   };
   
   // This component doesn't render anything
