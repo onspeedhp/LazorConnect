@@ -273,27 +273,19 @@ export default function Home() {
 
   const connectWithBackpack = () => {
     try {
-      const publicKey = connectBackpack(); // This is not an async function in our implementation
-      if (publicKey) {
-        setWalletAddress(publicKey);
-        setConnectionMethod("backpack");
-        setIsConnected(true);
-        toast({
-          title: "Connected with Backpack",
-          description: "You are now connected using Backpack wallet.",
-        });
-      } else {
-        toast({
-          title: "Connection Failed",
-          description: "Failed to connect with Backpack wallet.",
-          variant: "destructive",
-        });
-      }
+      // This will redirect to Phantom wallet
+      connectPhantom();
+      
+      // No need to set wallet address here, as it will be handled in the URL callback
+      toast({
+        title: "Connection Initiated",
+        description: "Redirecting to Phantom wallet for connection...",
+      });
     } catch (error) {
-      console.error("Error connecting with Backpack:", error);
+      console.error("Error connecting with Phantom:", error);
       toast({
         title: "Connection Error",
-        description: "An error occurred while connecting with Backpack.",
+        description: "An error occurred while connecting with Phantom wallet.",
         variant: "destructive",
       });
     }
@@ -301,7 +293,7 @@ export default function Home() {
 
   const handleDisconnect = async () => {
     if (connectionMethod === "backpack") {
-      await disconnectBackpack();
+      await disconnectPhantom();
     } else if (connectionMethod === "passkey") {
       await LazorKit.disconnect();
     }
@@ -320,22 +312,22 @@ export default function Home() {
       setBiometricAction("transaction");
       setShowBiometricPrompt(true);
     } else {
-      // For Backpack wallet, send via deeplink redirection
+      // For Phantom wallet, send via deeplink redirection
       const transactionAmount = 0.001;
       
       toast({
         title: "Transaction Initiated",
-        description: "Redirecting to Backpack wallet for approval...",
+        description: "Redirecting to Phantom wallet for approval...",
       });
       
       // Use a simulated recipient for demo
       const recipientPublicKey = "A84X2Qpt1btdKYL1vChg7iAY23ZX4GjA5WwdcZ9pyQTk";
       
-      // Call the sendTransaction function which will redirect to Backpack
+      // Call the sendTransaction function which will redirect to Phantom
       sendTransaction(walletAddress, recipientPublicKey, transactionAmount);
       
       // Note: The result will be handled when the user is redirected back
-      // via the tx_callback URL parameter in the useEffect hook
+      // via the phantom_transaction URL parameter in the useEffect hook
     }
   };
 
