@@ -24,9 +24,27 @@ interface WalletState {
  * Custom hook for Phantom wallet connection state and functions
  */
 export function usePhantomWallet() {
-  // Connection state stored in React useState
+  // Try to get initial dappKeyPair from localStorage
+  const getInitialDappKeyPair = (): nacl.BoxKeyPair | null => {
+    try {
+      const storedKeyPair = localStorage.getItem('phantom_dapp_keypair');
+      if (storedKeyPair) {
+        const parsedKeyPair = JSON.parse(storedKeyPair);
+        // Convert the stored strings back to Uint8Array objects
+        return {
+          publicKey: new Uint8Array(Object.values(parsedKeyPair.publicKey)),
+          secretKey: new Uint8Array(Object.values(parsedKeyPair.secretKey))
+        };
+      }
+    } catch (error) {
+      console.warn("Could not restore initial keypair from localStorage:", error);
+    }
+    return null;
+  };
+
+  // Connection state stored in React useState, initialized with localStorage values if available
   const [walletState, setWalletState] = useState<WalletState>({
-    dappKeyPair: null,
+    dappKeyPair: getInitialDappKeyPair(),
     sharedSecret: null,
     session: '',
     publicKey: '',
