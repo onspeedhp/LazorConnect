@@ -67,16 +67,19 @@ class BackpackWallet {
     const redirectUrl = baseUrl + '/?backpack=connect';
     const encodedRedirectUrl = encodeURIComponent(redirectUrl);
     
+    // Convert the public key to base58
+    const publicKeyBase58 = arrayToBase64(this.dappKeyPair.publicKey);
+    
     // Create connection URL parameters
     const params = new URLSearchParams({
-      dapp_encryption_public_key: arrayToBase64(this.dappKeyPair.publicKey),
-      cluster: 'devnet',
+      dapp_encryption_public_key: publicKeyBase58,
+      cluster: 'devnet', // Use devnet for testing
       redirect_link: encodedRedirectUrl,
-      app_url: baseUrl, // Optional: Add app_url for Backpack to display app info
+      app_url: encodeURIComponent(baseUrl), // Required: URL that provides app metadata
     });
     
-    // Form the URL
-    const url = `https://backpack.app/connect?${params.toString()}`;
+    // Form the URL - using the correct base URL as specified in docs
+    const url = `https://backpack.app/ul/v1/connect?${params.toString()}`;
     
     console.log('Connecting to Backpack with URL:', url);
     
@@ -205,8 +208,8 @@ class BackpackWallet {
         redirect_link: encodedRedirectUrl,
       });
       
-      // Form the URL
-      const url = `https://backpack.app/sign_transaction?${params.toString()}`;
+      // Form the URL - using the correct base URL as specified in docs
+      const url = `https://backpack.app/ul/v1/sign_transaction?${params.toString()}`;
       
       console.log('Sending transaction to Backpack with URL:', url);
       

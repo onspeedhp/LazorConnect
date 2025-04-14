@@ -459,7 +459,7 @@ export default function Home() {
         isOpen={showTransactionModal}
         onClose={() => setShowTransactionModal(false)}
         status={transactionStatus}
-        connectionMethod={connectionMethod as "passkey" | "phantom" | "backpack"}
+        connectionMethod={connectionMethod || "passkey"}
         amount={0.001}
       />
 
