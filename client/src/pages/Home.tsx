@@ -8,15 +8,7 @@ import TransactionModal from "@/components/modals/TransactionModal";
 import BiometricPrompt from "@/components/modals/BiometricPrompt";
 import { ClientTransaction } from "@shared/schema";
 import LazorKit from "@/lib/lazorKit";
-import {
-  connectPhantom,
-  disconnectPhantom,
-  requestAirdrop,
-  getWalletBalance,
-  sendTransaction,
-  checkForWalletResponse,
-  processConnectionResponse
-} from "@/lib/phantomAdapter";
+import { usePhantomWallet } from "@/hooks/use-phantom-wallet";
 import { useToast } from "@/hooks/use-toast";
 
 type ConnectionMethod = "passkey" | "backpack" | null;
@@ -44,6 +36,17 @@ export default function Home() {
     "connect" | "transaction"
   >("connect");
 
+  // Use our custom Phantom wallet hook
+  const { 
+    connectPhantom, 
+    processConnectionResponse, 
+    disconnectPhantom, 
+    getWalletBalance, 
+    requestAirdrop, 
+    sendTransaction,
+    checkForWalletResponse 
+  } = usePhantomWallet();
+  
   const { toast } = useToast();
 
   // Load CSS for FontAwesome
@@ -137,7 +140,7 @@ export default function Home() {
           }
         }
         
-        // Process connection response from the URL
+        // Process connection response from the URL using our hook function
         const response = processConnectionResponse(window.location.href);
         
         if (response && response.publicKey) {
@@ -229,7 +232,7 @@ export default function Home() {
       // Clean up the URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+  }, [processConnectionResponse, toast]);
 
   // Load wallet balance when connected
   useEffect(() => {
@@ -250,7 +253,7 @@ export default function Home() {
     };
 
     fetchBalance();
-  }, [isConnected, walletAddress, connectionMethod]);
+  }, [isConnected, walletAddress, connectionMethod, getWalletBalance]);
 
   const handleRequestAirdrop = async () => {
     if (!isConnected || isAirdropLoading) return;
