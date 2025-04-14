@@ -6,19 +6,16 @@
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import * as nacl from 'tweetnacl';
 import './buffer-polyfill'; // Ensure Buffer is available
+import bs58 from 'bs58';
 
-// Simple encoding/decoding utilities to replace bs58
-function arrayToBase64(array: Uint8Array): string {
-  return btoa(String.fromCharCode.apply(null, array as any));
+// Use proper bs58 encoding/decoding as per Backpack documentation
+// Base58 is required for Backpack wallet compatibility
+function arrayToBase58(array: Uint8Array): string {
+  return bs58.encode(array);
 }
 
-function base64ToArray(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
+function base58ToArray(base58Str: string): Uint8Array {
+  return bs58.decode(base58Str);
 }
 
 /**
@@ -80,8 +77,8 @@ class BackpackWallet {
     
     const encodedRedirectUrl = encodeURIComponent(redirectUrl);
     
-    // Convert the public key to base58
-    const publicKeyBase58 = arrayToBase64(this.dappKeyPair.publicKey);
+    // Convert the public key to base58 as required by Backpack
+    const publicKeyBase58 = arrayToBase58(this.dappKeyPair.publicKey);
     
     // Create connection URL parameters
     const params = new URLSearchParams({
@@ -134,9 +131,9 @@ class BackpackWallet {
         
         try {
           // Decode parameters
-          const walletEncPubKeyBytes = base64ToArray(wallet_encryption_public_key);
-          const nonceBytes = base64ToArray(nonce);
-          const encryptedDataBytes = base64ToArray(data);
+          const walletEncPubKeyBytes = base58ToArray(wallet_encryption_public_key);
+          const nonceBytes = base58ToArray(nonce);
+          const encryptedDataBytes = base58ToArray(data);
           
           // Create shared secret from wallet's public key and our private key
           const sharedSecret = nacl.box.before(
@@ -234,7 +231,7 @@ class BackpackWallet {
       
       // Prepare the payload object
       const payload = {
-        transaction: arrayToBase64(serializedTransaction),
+        transaction: arrayToBase58(serializedTransaction),
         session: this.session
         // sendOptions is optional, we'll omit it for now
       };
@@ -268,9 +265,9 @@ class BackpackWallet {
       
       // Form the URL - using the correct URL as specified in docs
       const url = `https://backpack.app/ul/v1/signAndSendTransaction?${new URLSearchParams({
-        dapp_encryption_public_key: arrayToBase64(this.dappKeyPair.publicKey),
-        nonce: arrayToBase64(nonce),
-        payload: arrayToBase64(encryptedPayload),
+        dapp_encryption_public_key: arrayToBase58(this.dappKeyPair.publicKey),
+        nonce: arrayToBase58(nonce),
+        payload: arrayToBase58(encryptedPayload),
         redirect_link: encodedRedirectUrl
       }).toString()}`;
       
@@ -306,9 +303,9 @@ class BackpackWallet {
       if (data && nonce && wallet_encryption_public_key) {
         try {
           // Decode parameters
-          const walletPublicKeyBytes = base64ToArray(wallet_encryption_public_key);
-          const nonceBytes = base64ToArray(nonce);
-          const encryptedDataBytes = base64ToArray(data);
+          const walletPublicKeyBytes = base58ToArray(wallet_encryption_public_key);
+          const nonceBytes = base58ToArray(nonce);
+          const encryptedDataBytes = base58ToArray(data);
           
           // Create shared secret
           const sharedSecret = nacl.box.before(
