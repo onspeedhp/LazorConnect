@@ -65,12 +65,53 @@ export function usePhantomWallet() {
 
   // Generate encryption keypair for secure communication with Phantom
   const getOrCreateDappKeyPair = useCallback((): nacl.BoxKeyPair => {
-    if (!walletState.dappKeyPair) {
-      const newKeyPair = nacl.box.keyPair();
-      setWalletState((prev) => ({ ...prev, dappKeyPair: newKeyPair }));
-      return newKeyPair;
+    // First try to get from state
+    if (walletState.dappKeyPair) {
+      return walletState.dappKeyPair;
     }
-    return walletState.dappKeyPair;
+
+    // Next, try to get from localStorage (for persistence across page loads)
+    try {
+      const storedKeyPair = localStorage.getItem('phantom_dapp_keypair');
+      if (storedKeyPair) {
+        const parsedKeyPair = JSON.parse(storedKeyPair);
+        // Convert the stored strings back to Uint8Array objects
+        const restoredKeyPair = {
+          publicKey: new Uint8Array(Object.values(parsedKeyPair.publicKey)),
+          secretKey: new Uint8Array(Object.values(parsedKeyPair.secretKey)),
+        };
+
+        console.log('Restored keypair from localStorage');
+        setWalletState((prev) => ({ ...prev, dappKeyPair: restoredKeyPair }));
+        return restoredKeyPair;
+      }
+    } catch (error) {
+      console.warn('Could not restore keypair from localStorage:', error);
+    }
+
+    // If no keypair exists, create a new one
+    const newKeyPair = nacl.box.keyPair();
+
+    // Store in state
+    setWalletState((prev) => ({ ...prev, dappKeyPair: newKeyPair }));
+
+    // Also store in localStorage for persistence
+    try {
+      // Need to convert Uint8Array to regular objects for JSON serialization
+      const serializableKeyPair = {
+        publicKey: Array.from(newKeyPair.publicKey),
+        secretKey: Array.from(newKeyPair.secretKey),
+      };
+      localStorage.setItem(
+        'phantom_dapp_keypair',
+        JSON.stringify(serializableKeyPair)
+      );
+      console.log('Stored new keypair in localStorage');
+    } catch (storageError) {
+      console.warn('Could not store keypair in localStorage:', storageError);
+    }
+
+    return newKeyPair;
   }, [walletState.dappKeyPair]);
 
   // Encrypt payload for sending to Phantom
@@ -363,6 +404,16 @@ export function usePhantomWallet() {
         session: '',
         publicKey: '',
       });
+
+      // Clear localStorage data
+      try {
+        localStorage.removeItem('phantom_dapp_keypair');
+        localStorage.removeItem('phantom_connection_id');
+        localStorage.removeItem('phantom_connection_timestamp');
+        console.log('Cleared connection data from localStorage');
+      } catch (e) {
+        console.warn('Could not clear data from localStorage:', e);
+      }
     } catch (error) {
       console.error('Error disconnecting from Phantom:', error);
 
