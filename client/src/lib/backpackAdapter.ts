@@ -1,8 +1,8 @@
-import { Connection, PublicKey, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 // This adapter provides methods for interacting with Backpack wallet via deeplinks
-// For the demo, we'll mostly be simulating the interactions since browser environment
-// makes it difficult to handle the actual deeplink return values
+// For the demo, we'll mostly simulate the interactions since browser environment
+// makes it difficult to handle deeplink return values in a demonstration
 
 // Connection to Solana devnet
 const connection = new Connection('https://api.devnet.solana.com');
@@ -19,17 +19,26 @@ const isMobile = (): boolean => {
 
 // Get the Backpack deeplink for the app
 export const getBackpackDeepLink = (): string => {
+  // In a real app, this would generate a proper deeplink according to their documentation
   return 'https://backpack.app';
 };
 
-// Connect to Backpack wallet via deeplink on mobile or return a simulated address on desktop
+// Connect to Backpack wallet
 export const connectBackpack = (): string => {
   if (isMobile()) {
-    // On mobile, we'd redirect to the Backpack app via deeplink
-    // In a real implementation, we'd use a URL scheme like:
-    // window.location.href = `backpack://connect?app=MyApp&redirect=${encodeURIComponent(window.location.href)}`;
+    // On mobile, we'd redirect to Backpack app via deeplink
+    const redirectUrl = `${window.location.origin}${window.location.pathname}?action=wallet_callback`;
     
-    // Simulate getting a wallet address
+    // Simplified deeplink format for demo purposes
+    const deeplink = `https://backpack.app/ul/v1/connect?app_url=example.com&redirect_link=${encodeURIComponent(redirectUrl)}&cluster=devnet`;
+    
+    // Log the deeplink for demonstration
+    console.log(`Would redirect to Backpack via: ${deeplink}`);
+    
+    // In a real implementation, we would:
+    // window.location.href = deeplink;
+    
+    // For demo purposes, return a simulated wallet address
     return "7bJdKSk3MBgN8DAVb1QY4rZRVrgZxfncqPQTfQjtDLzZ";
   } else {
     // For desktop demo, just return a simulated wallet address
@@ -40,11 +49,10 @@ export const connectBackpack = (): string => {
 
 // Check for wallet response when returning from deeplink
 export const checkForWalletResponse = (): boolean => {
-  // In a real implementation, we'd check for URL parameters that Backpack would add when returning from the deeplink
-  // For example, we might look for ?publicKey=xx&signature=yy parameters
+  // In a real implementation, we'd check for URL parameters that Backpack would add
   if (typeof window !== 'undefined') {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.has('publicKey');
+    return urlParams.has('action') && urlParams.get('action') === 'wallet_callback';
   }
   return false;
 };
@@ -88,10 +96,17 @@ export const requestAirdrop = async (publicKey: string, amount: number = 1): Pro
 export const sendTransaction = (senderPublicKey: string, recipientPublicKey: string, amount: number): void => {
   if (isMobile()) {
     // On mobile, we'd create a URL with transaction details and redirect to Backpack
-    // const redirectUrl = encodeURIComponent(window.location.href);
-    // window.location.href = `backpack://send?sender=${senderPublicKey}&recipient=${recipientPublicKey}&amount=${amount}&redirect=${redirectUrl}`;
+    const redirectUrl = encodeURIComponent(`${window.location.origin}${window.location.pathname}?action=tx_callback`);
     
-    console.log(`Sending ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey} via Backpack deeplink`);
+    // Simplified deeplink for demo purposes
+    const deeplink = `https://backpack.app/ul/v1/signAndSendTransaction?redirect_link=${redirectUrl}`;
+    
+    // Log the deeplink for demonstration
+    console.log(`Would send transaction via Backpack deeplink: ${deeplink}`);
+    console.log(`Transaction details: ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`);
+    
+    // In a real implementation, we would:
+    // window.location.href = deeplink;
   } else {
     // For desktop demo
     console.log(`Simulating sending ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`);
