@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import {
   Connection,
   PublicKey,
-  Transaction,
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import * as nacl from 'tweetnacl';
@@ -50,30 +49,64 @@ export function usePhantomWallet() {
     publicKey: '',
   });
 
+  // Helper function to get keypair from localStorage
+  const getKeypairFromLocalStorage = (): nacl.BoxKeyPair | null => {
+    try {
+      const storedKeyPair = localStorage.getItem('phantom_dapp_keypair');
+      if (storedKeyPair) {
+        const parsedKeyPair = JSON.parse(storedKeyPair);
+        // Convert the stored strings back to Uint8Array objects
+        return {
+          publicKey: new Uint8Array(Object.values(parsedKeyPair.publicKey)),
+          secretKey: new Uint8Array(Object.values(parsedKeyPair.secretKey))
+        };
+      }
+    } catch (error) {
+      console.warn("Could not restore keypair from localStorage:", error);
+    }
+    return null;
+  };
+
+  // Helper function to store keypair in localStorage
+  const storeKeypairInLocalStorage = (keyPair: nacl.BoxKeyPair): void => {
+    try {
+      // Need to convert Uint8Array to regular objects for JSON serialization
+      const serializableKeyPair = {
+        publicKey: Array.from(keyPair.publicKey),
+        secretKey: Array.from(keyPair.secretKey)
+      };
+      localStorage.setItem('phantom_dapp_keypair', JSON.stringify(serializableKeyPair));
+      console.log("Stored keypair in localStorage");
+    } catch (error) {
+      console.warn("Could not store keypair in localStorage:", error);
+    }
+  };
+  
+  // Helper function to clear connection data from localStorage
+  const clearConnectionDataFromLocalStorage = (): void => {
+    try {
+      localStorage.removeItem('phantom_dapp_keypair');
+      localStorage.removeItem('phantom_connection_id');
+      localStorage.removeItem('phantom_connection_timestamp');
+      console.log("Cleared connection data from localStorage");
+    } catch (error) {
+      console.warn("Could not clear data from localStorage:", error);
+    }
+  };
+
   // Generate encryption keypair for secure communication with Phantom
   const getOrCreateDappKeyPair = useCallback((): nacl.BoxKeyPair => {
     // First try to get from state
     if (walletState.dappKeyPair) {
       return walletState.dappKeyPair;
     }
-    // Next, try to get from localStorage (for persistence across page loads)
-    try {
-      const storedKeyPair = localStorage.getItem('phantom_dapp_keypair');
-      if (storedKeyPair) {
-        const parsedKeyPair = JSON.parse(storedKeyPair);
-        // Convert the stored strings back to Uint8Array objects
-        const restoredKeyPair = {
-          publicKey: new Uint8Array(Object.values(parsedKeyPair.publicKey)),
-
-          secretKey: new Uint8Array(Object.values(parsedKeyPair.secretKey)),
-        };
-
-        console.log('Restored keypair from localStorage');
-        setWalletState((prev) => ({ ...prev, dappKeyPair: restoredKeyPair }));
-        return restoredKeyPair;
-      }
-    } catch (error) {
-      console.warn("Could not restore keypair from localStorage:", error);
+    
+    // Next, try to get from localStorage
+    const restoredKeyPair = getKeypairFromLocalStorage();
+    if (restoredKeyPair) {
+      console.log('Restored keypair from localStorage');
+      setWalletState((prev) => ({ ...prev, dappKeyPair: restoredKeyPair }));
+      return restoredKeyPair;
     }
     
     // If no keypair exists, create a new one
@@ -82,19 +115,8 @@ export function usePhantomWallet() {
     // Store in state
     setWalletState((prev) => ({ ...prev, dappKeyPair: newKeyPair }));
     
-
     // Also store in localStorage for persistence
-    try {
-      // Need to convert Uint8Array to regular objects for JSON serialization
-      const serializableKeyPair = {
-        publicKey: Array.from(newKeyPair.publicKey),
-        secretKey: Array.from(newKeyPair.secretKey)
-      };
-      localStorage.setItem('phantom_dapp_keypair', JSON.stringify(serializableKeyPair));
-      console.log("Stored new keypair in localStorage");
-    } catch (storageError) {
-      console.warn("Could not store keypair in localStorage:", storageError);
-    }
+    storeKeypairInLocalStorage(newKeyPair);
     
     return newKeyPair;
   }, [walletState.dappKeyPair]);
@@ -163,24 +185,14 @@ export function usePhantomWallet() {
       let keyPair = walletState.dappKeyPair;
       if (!keyPair) {
         console.log("No keyPair in state, trying to get from localStorage");
-        try {
-          const storedKeyPair = localStorage.getItem('phantom_dapp_keypair');
-          if (storedKeyPair) {
-            const parsedKeyPair = JSON.parse(storedKeyPair);
-            // Convert the stored strings back to Uint8Array objects
-            keyPair = {
-              publicKey: new Uint8Array(Object.values(parsedKeyPair.publicKey)),
-              secretKey: new Uint8Array(Object.values(parsedKeyPair.secretKey))
-            };
-            
-            // Update state with the keyPair
-            setWalletState(prev => ({ ...prev, dappKeyPair: keyPair }));
-            console.log("Restored keypair from localStorage for response processing");
-          } else {
-            console.error("No stored keypair found in localStorage");
-          }
-        } catch (error) {
-          console.error("Error restoring keypair from localStorage:", error);
+        keyPair = getKeypairFromLocalStorage();
+        
+        if (keyPair) {
+          // Update state with the keyPair
+          setWalletState(prev => ({ ...prev, dappKeyPair: keyPair }));
+          console.log("Restored keypair from localStorage for response processing");
+        } else {
+          console.error("No stored keypair found in localStorage");
         }
       }
       
@@ -366,14 +378,7 @@ export function usePhantomWallet() {
       });
       
       // Clear localStorage data
-      try {
-        localStorage.removeItem('phantom_dapp_keypair');
-        localStorage.removeItem('phantom_connection_id');
-        localStorage.removeItem('phantom_connection_timestamp');
-        console.log("Cleared connection data from localStorage");
-      } catch (e) {
-        console.warn("Could not clear data from localStorage:", e);
-      }
+      clearConnectionDataFromLocalStorage();
     }
   }, [walletState, encryptPayload]);
 
