@@ -14,6 +14,7 @@ import {
   requestAirdrop,
   getWalletBalance,
   sendTransaction,
+  setWalletType,
 } from "@/lib/walletAdapter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -188,7 +189,7 @@ export default function Home() {
   const handleSimulateWalletConnect = () => {
     setShowWalletModal(false);
     simulateDelay(() => {
-      connectWithPhantom();
+      connectWithBackpack(); // Use Backpack as the default wallet
     }, 500);
   };
 
@@ -259,6 +260,48 @@ export default function Home() {
       toast({
         title: "Connection Error",
         description: "An error occurred while connecting with Phantom.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const connectWithBackpack = async () => {
+    try {
+      // Check if user is on mobile
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // Set wallet type to Backpack before connecting
+      setWalletType('backpack');
+      
+      // Get public key from Backpack
+      const publicKey = await connectWallet();
+      if (publicKey) {
+        setWalletAddress(publicKey);
+        setConnectionMethod("backpack");
+        setIsConnected(true);
+        
+        // Fetch current balance
+        const currentBalance = await getWalletBalance(publicKey);
+        setBalance(currentBalance);
+        
+        toast({
+          title: "Connected with Backpack",
+          description: isMobile 
+            ? "Connected to Backpack wallet via mobile" 
+            : "You are now connected using Backpack wallet.",
+        });
+      } else {
+        toast({
+          title: "Connection Failed",
+          description: "Failed to connect with Backpack wallet.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error connecting with Backpack:", error);
+      toast({
+        title: "Connection Error",
+        description: "An error occurred while connecting with Backpack.",
         variant: "destructive",
       });
     }
@@ -388,7 +431,7 @@ export default function Home() {
           />
         ) : (
           <Dashboard
-            connectionMethod={connectionMethod as "passkey" | "phantom"}
+            connectionMethod={connectionMethod as "passkey" | "phantom" | "backpack"}
             walletAddress={walletAddress}
             onDisconnect={handleDisconnect}
             onSendTransaction={handleSendTransaction}
@@ -416,7 +459,7 @@ export default function Home() {
         isOpen={showTransactionModal}
         onClose={() => setShowTransactionModal(false)}
         status={transactionStatus}
-        connectionMethod={connectionMethod as "passkey" | "phantom"}
+        connectionMethod={connectionMethod as "passkey" | "phantom" | "backpack"}
         amount={0.001}
       />
 
