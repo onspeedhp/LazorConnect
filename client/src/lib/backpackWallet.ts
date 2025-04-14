@@ -27,6 +27,7 @@ class BackpackWallet {
   private session: string | null = null;
   private walletPublicKey: PublicKey | null = null;
   private connection: Connection;
+  private isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   
   private constructor() {
     this.connection = new Connection('https://api.devnet.solana.com', 'confirmed');
@@ -57,24 +58,17 @@ class BackpackWallet {
     // Create a new key pair for this session
     this.dappKeyPair = nacl.box.keyPair();
     
-    // Create redirect URL - for iOS, we need to use special formatting
-    // to ensure it can return to Safari from Backpack
-    const isMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // Detect device platform for platform-specific handling
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     
     // Get baseUrl with correct port
     const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
     
-    // For iOS, we use a special format that enables returning to Safari
-    let redirectUrl = '';
-    if (isIOS) {
-      // Use a universal link format that iOS recognizes for returning to browsers
-      redirectUrl = `https://backpack.app/return?redirect_link=${encodeURIComponent(baseUrl + '/?backpack=connect')}`;
-    } else {
-      // For other platforms, use normal redirect
-      redirectUrl = baseUrl + '/?backpack=connect';
-    }
+    // Create direct redirect URL to our app (no special handling in connect needed)
+    // The redirect_link parameter should be our app URL where Backpack will redirect after connection
+    const redirectUrl = baseUrl + '/?backpack=connect';
     
+    // According to Backpack docs, the redirect_link must be URL-encoded
     const encodedRedirectUrl = encodeURIComponent(redirectUrl);
     
     // Convert the public key to base58 as required by Backpack
@@ -93,8 +87,16 @@ class BackpackWallet {
     
     console.log('Connecting to Backpack with URL:', url);
     
-    // Open the URL
-    window.location.href = url;
+    // Now use the previously detected iOS flag
+    
+    if (isIOS) {
+      // On iOS, we use the universal link fallback mechanism that will return to Safari
+      // iOS needs this special handling to return to Safari after the wallet operation
+      window.location.href = `https://backpack.app/return?address_=_skip_&redirect_link=${encodeURIComponent(url)}`;
+    } else {
+      // On other platforms, we can open the URL directly
+      window.location.href = url;
+    }
     
     return url;
   }
@@ -211,19 +213,10 @@ class BackpackWallet {
       // Get baseUrl with correct port
       const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
       
-      // Check if user is on iOS for special redirect handling
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      // According to Backpack docs, we need a direct redirect URL
+      const redirectUrl = baseUrl + '/?backpack=transaction';
       
-      // Create appropriate redirect URL
-      let redirectUrl = '';
-      if (isIOS) {
-        // Use a universal link format that iOS recognizes for returning to browsers
-        redirectUrl = `https://backpack.app/return?redirect_link=${encodeURIComponent(baseUrl + '/?backpack=transaction')}`;
-      } else {
-        // For other platforms, use normal redirect
-        redirectUrl = baseUrl + '/?backpack=transaction';
-      }
-      
+      // The docs specify redirect_link must be URL-encoded
       const encodedRedirectUrl = encodeURIComponent(redirectUrl);
       
       // Generate a nonce for encryption
@@ -273,8 +266,16 @@ class BackpackWallet {
       
       console.log('Sending transaction to Backpack with URL:', url);
       
-      // Open the URL
-      window.location.href = url;
+      // Check for iOS platform for special handling
+      
+      if (isIOS) {
+        // On iOS, we use the universal link fallback mechanism that will return to Safari
+        // iOS needs this special handling to return to Safari after the wallet operation
+        window.location.href = `https://backpack.app/return?address_=_skip_&redirect_link=${encodeURIComponent(url)}`;
+      } else {
+        // On other platforms, we can open the URL directly
+        window.location.href = url;
+      }
       
       return url;
     } catch (error) {
