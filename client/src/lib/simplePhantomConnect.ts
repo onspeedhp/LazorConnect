@@ -6,8 +6,8 @@ import './buffer-polyfill';
 
 // Create a URL for connecting to Phantom wallet
 export function getPhantomConnectUrl(): string {
-  // Make sure we use port 5000 in URLs
-  const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
+  // Always use port 5000 for our application
+  const baseUrl = window.location.protocol + "//" + window.location.hostname + ":5000";
   const currentUrl = baseUrl + window.location.pathname + window.location.search;
   const redirectUrl = encodeURIComponent(currentUrl);
   

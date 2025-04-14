@@ -52,10 +52,11 @@ export const getPhantomDeepLink = (): string => {
   } catch (error) {
     console.error("Error creating deeplink:", error);
     
-    // Fallback to a simple deeplink if there's an error
+    // Fallback to a simple deeplink if there's an error - always use port 5000
+    const baseUrl = window.location.protocol + "//" + window.location.hostname + ":5000";
     const params = new URLSearchParams({
-      app_url: window.location.origin,
-      redirect_link: window.location.href,
+      app_url: baseUrl,
+      redirect_link: baseUrl + window.location.pathname + window.location.search,
       cluster: "devnet"
     });
     
