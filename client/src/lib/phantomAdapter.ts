@@ -63,34 +63,71 @@ export const processConnectionResponse = (url: string): { publicKey: string; ses
       return null;
     }
 
-    // Get shared secret
+    // Check for direct public key in URL (some wallet implementations do this)
+    const directPublicKey = params.get("phantom_address") || params.get("public_key");
+    if (directPublicKey) {
+      console.log("Found direct public key in URL:", directPublicKey);
+      phantomWalletPublicKey = directPublicKey;
+      session = "direct-connection"; // Simplified session handling
+      
+      return {
+        publicKey: directPublicKey,
+        session: "direct-connection"
+      };
+    }
+
+    // Try encrypted data flow
     const phantomEncryptionPublicKey = params.get("phantom_encryption_public_key");
-    if (!phantomEncryptionPublicKey || !dappKeyPair) {
-      console.error("Missing encryption keys");
+    const data = params.get("data");
+    const nonce = params.get("nonce");
+    
+    if (!phantomEncryptionPublicKey || !data || !nonce || !dappKeyPair) {
+      console.log("Missing encryption parameters for secure connection");
+      
+      // If we reach here, it means we don't have either direct connection or proper encrypted connection
+      // Let's check if the URL has any information that might help us identify a wallet connection
+      
+      // In real world this would be more robust, but for demo:
+      if (params.has("phantom_wallet") || params.has("phantom")) {
+        // Extract any potential wallet information
+        const accountInfo = params.get("account") || params.get("phantom_wallet") || params.get("wallet_address");
+        if (accountInfo) {
+          console.log("Found potential wallet info:", accountInfo);
+          return {
+            publicKey: accountInfo,
+            session: "inferred-connection"
+          };
+        }
+      }
+      
       return null;
     }
 
-    // Create shared secret
+    // Create shared secret for encrypted connection
     const sharedSecretDapp = nacl.box.before(
       bs58.decode(phantomEncryptionPublicKey),
       dappKeyPair.secretKey
     );
 
-    // Decrypt connection data
-    const connectData = decryptPayload(
-      params.get("data")!,
-      params.get("nonce")!
-    );
+    try {
+      // Decrypt connection data
+      const connectData = decryptPayload(data, nonce);
 
-    // Save connection state
-    sharedSecret = sharedSecretDapp;
-    session = connectData.session;
-    phantomWalletPublicKey = connectData.public_key;
-    
-    return {
-      publicKey: connectData.public_key,
-      session: connectData.session
-    };
+      // Save connection state
+      sharedSecret = sharedSecretDapp;
+      session = connectData.session;
+      phantomWalletPublicKey = connectData.public_key;
+      
+      console.log("Successfully decrypted wallet connection:", connectData.public_key);
+      
+      return {
+        publicKey: connectData.public_key,
+        session: connectData.session
+      };
+    } catch (decryptError) {
+      console.error("Error decrypting payload:", decryptError);
+      return null;
+    }
   } catch (error) {
     console.error("Error processing connection response:", error);
     return null;
@@ -107,12 +144,22 @@ export const connectPhantom = (): string => {
     const params = new URLSearchParams({
       dapp_encryption_public_key: bs58.encode(keyPair.publicKey),
       cluster: "devnet",
-      app_url: "https://example.com",
+      app_url: window.location.origin,
       redirect_link: `${window.location.origin}${window.location.pathname}?action=phantom_connect`
     });
 
-    // Create deeplink URL
-    const url = `phantom://v1/connect?${params.toString()}`;
+    // Figure out which URL format to use based on the environment
+    // On mobile, we want to use deep links, on desktop we might use universal links
+    let url;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Mobile devices - use deep link
+      url = `phantom://v1/connect?${params.toString()}`;
+    } else {
+      // Desktop or other devices - use universal link format which may work better
+      url = `https://phantom.app/ul/v1/connect?${params.toString()}`;
+    }
     
     // Log the URL for debugging
     console.log("Redirecting to Phantom:", url);
@@ -138,40 +185,64 @@ export const checkForWalletResponse = (): boolean => {
 
 // Disconnect from Phantom wallet
 export const disconnectPhantom = (): void => {
-  if (!session || !sharedSecret || !dappKeyPair) {
-    console.log("Not connected to Phantom");
-    return;
-  }
-
   try {
-    // Create payload for disconnect
-    const payload = { session };
-    const [nonce, encryptedPayload] = encryptPayload(payload);
+    // For a proper encrypted session
+    if (session && sharedSecret && dappKeyPair) {
+      // Create payload for disconnect
+      const payload = { session };
+      
+      try {
+        const [nonce, encryptedPayload] = encryptPayload(payload);
 
-    // Prepare disconnect parameters
-    const params = new URLSearchParams({
-      dapp_encryption_public_key: bs58.encode(dappKeyPair.publicKey),
-      nonce: bs58.encode(nonce),
-      redirect_link: `${window.location.origin}${window.location.pathname}?action=phantom_disconnect`,
-      payload: bs58.encode(encryptedPayload)
-    });
+        // Prepare disconnect parameters for encrypted session
+        const params = new URLSearchParams({
+          dapp_encryption_public_key: bs58.encode(dappKeyPair.publicKey),
+          nonce: bs58.encode(nonce),
+          redirect_link: `${window.location.origin}${window.location.pathname}?action=phantom_disconnect`,
+          payload: bs58.encode(encryptedPayload)
+        });
 
-    // Create deeplink URL
-    const url = `phantom://v1/disconnect?${params.toString()}`;
+        // Figure out which URL format to use based on the environment
+        let url;
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          // Mobile devices - use deep link
+          url = `phantom://v1/disconnect?${params.toString()}`;
+        } else {
+          // Desktop or other devices - use universal link
+          url = `https://phantom.app/ul/v1/disconnect?${params.toString()}`;
+        }
+        
+        // Log the URL for debugging
+        console.log("Disconnecting from Phantom:", url);
+        
+        // In a real app, we would redirect to Phantom here
+        // but for our demo we'll just clear the connection state
+        // window.location.href = url;
+      } catch (encryptError) {
+        console.error("Error encrypting disconnect payload:", encryptError);
+      }
+    } else if (phantomWalletPublicKey) {
+      // For direct connection (no encryption)
+      console.log("Disconnecting direct connection for", phantomWalletPublicKey);
+    } else {
+      console.log("Not connected to Phantom");
+    }
     
-    // Log the URL for debugging
-    console.log("Disconnecting from Phantom:", url);
-    
-    // Clear connection state
+    // Always clear connection state
     dappKeyPair = null;
     sharedSecret = null;
     session = null;
     phantomWalletPublicKey = null;
-
-    // We won't actually redirect for disconnect in our demo
-    // window.location.href = url;
   } catch (error) {
     console.error("Error disconnecting from Phantom:", error);
+    
+    // Still clear connection state even if there was an error
+    dappKeyPair = null;
+    sharedSecret = null;
+    session = null;
+    phantomWalletPublicKey = null;
   }
 };
 
@@ -206,7 +277,7 @@ export const requestAirdrop = async (publicKey: string, amount: number = 1): Pro
 
 // Send a transaction
 export const sendTransaction = (senderPublicKey: string, recipientPublicKey: string, amount: number): void => {
-  if (!session || !sharedSecret || !dappKeyPair) {
+  if (!session && phantomWalletPublicKey === null) {
     console.error("Not connected to Phantom");
     return;
   }
@@ -220,13 +291,32 @@ export const sendTransaction = (senderPublicKey: string, recipientPublicKey: str
     // For this demo, we'll use a simplified approach
     const redirectUrl = `${window.location.origin}${window.location.pathname}?action=phantom_transaction`;
     
-    // Simplified deeplink that would typically include the encrypted transaction
+    // Simplified parameters that would typically include the encrypted transaction
     const params = new URLSearchParams({
-      dapp_encryption_public_key: bs58.encode(dappKeyPair.publicKey),
       redirect_link: redirectUrl
     });
     
-    const url = `phantom://v1/signTransaction?${params.toString()}`;
+    // Add encryption key if available
+    if (dappKeyPair) {
+      params.append("dapp_encryption_public_key", bs58.encode(dappKeyPair.publicKey));
+    }
+    
+    // Add transaction details for demo (in a real app, this would be part of the encrypted payload)
+    params.append("sender", senderPublicKey);
+    params.append("receiver", recipientPublicKey);
+    params.append("amount", amount.toString());
+    
+    // Figure out which URL format to use based on the environment
+    let url;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Mobile devices - use deep link
+      url = `phantom://v1/signTransaction?${params.toString()}`;
+    } else {
+      // Desktop or other devices - use universal link
+      url = `https://phantom.app/ul/v1/signTransaction?${params.toString()}`;
+    }
     
     // Log transaction details
     console.log(`Sending ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`);
