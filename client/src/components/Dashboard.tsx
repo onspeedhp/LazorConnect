@@ -3,7 +3,7 @@ import { ClientTransaction } from '@shared/schema';
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardProps {
-  connectionMethod: 'passkey' | 'phantom';
+  connectionMethod: 'passkey' | 'backpack';
   walletAddress: string;
   onDisconnect: () => void;
   onSendTransaction: () => void;
@@ -48,11 +48,11 @@ const Dashboard: FC<DashboardProps> = ({
       "No extensions required",
       "Works on any device including mobile"
     ],
-    phantom: [
-      "Industry standard wallet connection",
-      "Requires extension or app installation",
-      "Multiple steps for transaction approval",
-      "Great for advanced users"
+    backpack: [
+      "Modern Solana-native wallet with deep mobile integration",
+      "Multi-chain support with excellent UX",
+      "Built for mobile-first usage with deeplinks",
+      "Great for existing crypto users with built-in NFT support"
     ]
   };
 
@@ -79,7 +79,7 @@ const Dashboard: FC<DashboardProps> = ({
               >
                 <i className={`fas ${connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'} text-xs`}></i>
               </div>
-              <span className="text-sm font-medium">Connected via {connectionMethod === 'passkey' ? 'Passkey' : 'Phantom'}</span>
+              <span className="text-sm font-medium">Connected via {connectionMethod === 'passkey' ? 'Passkey' : 'Backpack'}</span>
             </div>
             <p className="text-xs text-[#9FA3B5] font-mono mt-1">{truncateAddress(walletAddress)}</p>
           </div>
@@ -207,17 +207,17 @@ const Dashboard: FC<DashboardProps> = ({
           </ul>
         </div>
         
-        {/* Phantom Column */}
+        {/* Backpack Column */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-[#7857FF]">
           <div className="flex items-center mb-3">
             <div className="w-8 h-8 rounded-full bg-[#7857FF] flex items-center justify-center mr-2 text-white">
               <i className="fas fa-wallet"></i>
             </div>
-            <h4 className="text-lg font-semibold">Phantom Wallet</h4>
+            <h4 className="text-lg font-semibold">Backpack Wallet</h4>
           </div>
           
           <ul className="space-y-2">
-            {connectionBenefits.phantom.map((benefit, index) => (
+            {connectionBenefits.backpack.map((benefit: string, index: number) => (
               <li key={index} className="flex items-start">
                 <span className="text-[#7857FF] mr-2"><i className="fas fa-info-circle"></i></span>
                 <span className="text-sm">{benefit}</span>

@@ -97,8 +97,8 @@ const WelcomeSection: FC<WelcomeSectionProps> = ({
               <i className="fas fa-wallet text-white"></i>
             </div>
             <div>
-              <h3 className="font-semibold text-lg">Connect with Phantom</h3>
-              <p className="text-sm text-[#9FA3B5]">Use your existing Phantom wallet</p>
+              <h3 className="font-semibold text-lg">Connect with Backpack</h3>
+              <p className="text-sm text-[#9FA3B5]">Use your existing Backpack wallet</p>
             </div>
           </div>
           <i className="fas fa-chevron-right text-[#9FA3B5]"></i>
