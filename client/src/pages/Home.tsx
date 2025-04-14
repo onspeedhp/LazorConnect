@@ -17,7 +17,7 @@ import {
 } from "@/lib/walletAdapter";
 import { useToast } from "@/hooks/use-toast";
 
-type ConnectionMethod = "passkey" | "phantom" | null;
+type ConnectionMethod = "passkey" | "phantom" | "backpack" | null;
 type TransactionStatus = "processing" | "success" | "error";
 
 export default function Home() {

@@ -3,7 +3,7 @@ import { ClientTransaction } from '@shared/schema';
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardProps {
-  connectionMethod: 'passkey' | 'phantom';
+  connectionMethod: 'passkey' | 'phantom' | 'backpack';
   walletAddress: string;
   onDisconnect: () => void;
   onSendTransaction: () => void;
@@ -58,12 +58,18 @@ const Dashboard: FC<DashboardProps> = ({
             <div className="flex items-center">
               <div 
                 className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 text-white ${
-                  connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 'bg-[#7857FF]'
+                  connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 
+                  connectionMethod === 'phantom' ? 'bg-[#7857FF]' : 'bg-[#E93D44]'
                 }`}
               >
-                <i className={`fas ${connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'} text-xs`}></i>
+                <i className={`fas ${
+                  connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'
+                } text-xs`}></i>
               </div>
-              <span className="text-sm font-medium">Connected via {connectionMethod === 'passkey' ? 'Passkey' : 'Phantom'}</span>
+              <span className="text-sm font-medium">Connected via {
+                connectionMethod === 'passkey' ? 'Passkey' : 
+                connectionMethod === 'phantom' ? 'Phantom' : 'Backpack'
+              }</span>
             </div>
             <p className="text-xs text-[#9FA3B5] font-mono mt-1">{truncateAddress(walletAddress)}</p>
           </div>
