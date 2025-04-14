@@ -60,11 +60,24 @@ class BackpackWallet {
     // Create a new key pair for this session
     this.dappKeyPair = nacl.box.keyPair();
     
+    // Create redirect URL - for iOS, we need to use special formatting
+    // to ensure it can return to Safari from Backpack
+    const isMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
     // Get baseUrl with correct port
     const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
     
-    // URL encode the redirect link as per Backpack's specification
-    const redirectUrl = baseUrl + '/?backpack=connect';
+    // For iOS, we use a special format that enables returning to Safari
+    let redirectUrl = '';
+    if (isIOS) {
+      // Use a universal link format that iOS recognizes for returning to browsers
+      redirectUrl = `https://backpack.app/return?redirect_link=${encodeURIComponent(baseUrl + '/?backpack=connect')}`;
+    } else {
+      // For other platforms, use normal redirect
+      redirectUrl = baseUrl + '/?backpack=connect';
+    }
+    
     const encodedRedirectUrl = encodeURIComponent(redirectUrl);
     
     // Convert the public key to base58
@@ -171,9 +184,14 @@ class BackpackWallet {
     this.session = null;
     this.walletPublicKey = null;
     
-    // Redirect to disconnect URL
+    // Get baseUrl with correct port
     const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
+    
+    // No need to go through Backpack app for disconnection - we can just redirect locally 
+    // to clear URL parameters and allow the BackpackResponseHandler to manage the state
     const redirectLink = baseUrl + '/?backpack=disconnect';
+    
+    console.log('Disconnecting from Backpack wallet');
     window.location.href = redirectLink;
   }
   
@@ -196,8 +214,19 @@ class BackpackWallet {
       // Get baseUrl with correct port
       const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
       
-      // URL encode the redirect link as per Backpack's specification
-      const redirectUrl = baseUrl + '/?backpack=transaction';
+      // Check if user is on iOS for special redirect handling
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      
+      // Create appropriate redirect URL
+      let redirectUrl = '';
+      if (isIOS) {
+        // Use a universal link format that iOS recognizes for returning to browsers
+        redirectUrl = `https://backpack.app/return?redirect_link=${encodeURIComponent(baseUrl + '/?backpack=transaction')}`;
+      } else {
+        // For other platforms, use normal redirect
+        redirectUrl = baseUrl + '/?backpack=transaction';
+      }
+      
       const encodedRedirectUrl = encodeURIComponent(redirectUrl);
       
       // Generate a nonce for encryption
