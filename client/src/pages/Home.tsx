@@ -105,20 +105,49 @@ export default function Home() {
   useEffect(() => {
     // Check if we have a wallet callback in the URL
     const urlParams = new URLSearchParams(window.location.search);
+    
+    // Handle Phantom connection callback
     if (urlParams.has('action') && urlParams.get('action') === 'phantom_connect') {
-      // Handle wallet connection response
-      toast({
-        title: "Wallet Connected",
-        description: "Successfully connected with Phantom wallet!",
-      });
+      // In a real implementation, we would extract and validate data, nonce, etc.
+      // For now, we can check if there's a public_key parameter that Phantom might send back
+      let phantomPublicKey = urlParams.get('public_key');
       
-      // In a full implementation, we would extract the public key from the response
-      // For now, we'll use a test address
-      const publicKey = "7bJdKSk3MBgN8DAVb1QY4rZRVrgZxfncqPQTfQjtDLzZ";
+      if (!phantomPublicKey) {
+        // If not directly in URL, it might be in an encrypted payload like the example showed
+        // For now, let's check for common parameters that might indicate a successful connection
+        const hasPhantomParams = urlParams.has('phantom_encryption_public_key') || 
+                                urlParams.has('data') || 
+                                urlParams.has('nonce');
+                                
+        if (hasPhantomParams) {
+          // Try to process the connection response
+          // This is a simplified version - we would normally decrypt the data
+          console.log("Phantom connection detected with encrypted payload");
+          // In real implementation we would call processConnectionResponse here
+          
+          // For demo, we'll use user's input
+          phantomPublicKey = prompt("Please paste your Phantom wallet address:", "");
+        }
+      }
       
-      setWalletAddress(publicKey);
-      setConnectionMethod("backpack"); // Keep as "backpack" for UI compatibility
-      setIsConnected(true);
+      // If we have a public key, use it
+      if (phantomPublicKey) {
+        toast({
+          title: "Wallet Connected",
+          description: "Successfully connected with Phantom wallet!",
+        });
+        
+        setWalletAddress(phantomPublicKey);
+        setConnectionMethod("backpack"); // Keep as "backpack" for UI compatibility
+        setIsConnected(true);
+      } else {
+        // If we couldn't get a public key, show an error
+        toast({
+          title: "Connection Failed",
+          description: "Could not retrieve your Phantom wallet address.",
+          variant: "destructive",
+        });
+      }
       
       // Clean up the URL
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -127,19 +156,37 @@ export default function Home() {
     // Also check for transaction callback
     if (urlParams.has('action') && urlParams.get('action') === 'phantom_transaction') {
       // Handle transaction response
-      toast({
-        title: "Transaction Sent",
-        description: "Your transaction was processed by Phantom wallet!",
-      });
+      let signatureParam = urlParams.get('signature');
+      let transactionSuccess = true;
       
-      // For demo purposes, simulate successful transaction
+      // Check if there's an error parameter
+      if (urlParams.has('errorCode') || urlParams.has('errorMessage')) {
+        transactionSuccess = false;
+        
+        toast({
+          title: "Transaction Failed",
+          description: urlParams.get('errorMessage') || "Transaction was not completed",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Transaction Sent",
+          description: signatureParam 
+            ? `Transaction signed with signature: ${signatureParam.substring(0, 8)}...` 
+            : "Your transaction was processed by Phantom wallet!",
+        });
+      }
+      
+      // For demo purposes
       const transactionAmount = 0.001;
-      setTransactionStatus("success");
+      setTransactionStatus(transactionSuccess ? "success" : "error");
       setShowTransactionModal(true);
-      addTransaction(transactionAmount, true, "backpack"); // Keep as "backpack" for UI compatibility
+      addTransaction(transactionAmount, transactionSuccess, "backpack"); // Keep as "backpack" for UI compatibility
       
-      // Update balance
-      setBalance(prev => prev - transactionAmount - 0.000005); // Subtract amount + fee
+      // Update balance if transaction was successful
+      if (transactionSuccess) {
+        setBalance(prev => prev - transactionAmount - 0.000005); // Subtract amount + fee
+      }
       
       // Clean up the URL
       window.history.replaceState({}, document.title, window.location.pathname);

@@ -49,10 +49,10 @@ const Dashboard: FC<DashboardProps> = ({
       "Works on any device including mobile"
     ],
     backpack: [
-      "Modern Solana-native wallet with deep mobile integration",
-      "Multi-chain support with excellent UX",
-      "Built for mobile-first usage with deeplinks",
-      "Great for existing crypto users with built-in NFT support"
+      "Popular Solana wallet with excellent mobile support",
+      "Multi-chain support with user-friendly interface",
+      "Built with deep mobile integration using deeplinks",
+      "Great for existing crypto users with NFT/dApp features"
     ]
   };
 
@@ -79,7 +79,7 @@ const Dashboard: FC<DashboardProps> = ({
               >
                 <i className={`fas ${connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'} text-xs`}></i>
               </div>
-              <span className="text-sm font-medium">Connected via {connectionMethod === 'passkey' ? 'Passkey' : 'Backpack'}</span>
+              <span className="text-sm font-medium">Connected via {connectionMethod === 'passkey' ? 'Passkey' : 'Phantom'}</span>
             </div>
             <p className="text-xs text-[#9FA3B5] font-mono mt-1">{truncateAddress(walletAddress)}</p>
           </div>
@@ -213,7 +213,7 @@ const Dashboard: FC<DashboardProps> = ({
             <div className="w-8 h-8 rounded-full bg-[#7857FF] flex items-center justify-center mr-2 text-white">
               <i className="fas fa-wallet"></i>
             </div>
-            <h4 className="text-lg font-semibold">Backpack Wallet</h4>
+            <h4 className="text-lg font-semibold">Phantom Wallet</h4>
           </div>
           
           <ul className="space-y-2">
