@@ -46,5 +46,5 @@ export interface ClientTransaction {
   amount: number;
   success: boolean;
   timestamp: Date;
-  connectionMethod: 'passkey' | 'phantom';
+  connectionMethod: 'passkey' | 'backpack';
 }

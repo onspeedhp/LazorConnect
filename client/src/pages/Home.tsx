@@ -274,17 +274,17 @@ export default function Home() {
       setBiometricAction("transaction");
       setShowBiometricPrompt(true);
     } else {
-      // For Phantom, show the transaction modal directly
+      // For Backpack, show the transaction modal directly
       setTransactionStatus("processing");
       setShowTransactionModal(true);
 
-      // For demonstration purposes, let's simulate a Phantom wallet transaction
+      // For demonstration purposes, let's simulate a Backpack wallet transaction
       // This bypasses the Buffer issues while showing the comparison between methods
       const transactionAmount = 0.001;
       
       toast({
         title: "Transaction Processing",
-        description: "Please approve the transaction in your Phantom wallet.",
+        description: "Please approve the transaction in your Backpack wallet.",
       });
       
       // Simulate a delayed transaction process to demonstrate wallet popup and processing
@@ -299,7 +299,7 @@ export default function Home() {
             title: "Transaction Successful",
             description: "The SOL has been successfully sent!",
           });
-          addTransaction(transactionAmount, true, "phantom");
+          addTransaction(transactionAmount, true, "backpack");
           
           // Update balance after successful transaction
           setBalance(prev => prev - transactionAmount - 0.000005); // Subtract amount + fee
@@ -311,7 +311,7 @@ export default function Home() {
             description: "Transaction was rejected or failed to process.",
             variant: "destructive",
           });
-          addTransaction(transactionAmount, false, "phantom");
+          addTransaction(transactionAmount, false, "backpack");
         }
       }, 2000);
     }
@@ -347,7 +347,7 @@ export default function Home() {
   const addTransaction = (
     amount: number,
     success: boolean,
-    method: "passkey" | "phantom",
+    method: "passkey" | "backpack",
   ) => {
     const newTransaction: ClientTransaction = {
       id: `tx_${Date.now()}`,
@@ -377,7 +377,7 @@ export default function Home() {
           />
         ) : (
           <Dashboard
-            connectionMethod={connectionMethod as "passkey" | "phantom"}
+            connectionMethod={connectionMethod as "passkey" | "backpack"}
             walletAddress={walletAddress}
             onDisconnect={handleDisconnect}
             onSendTransaction={handleSendTransaction}
@@ -405,7 +405,7 @@ export default function Home() {
         isOpen={showTransactionModal}
         onClose={() => setShowTransactionModal(false)}
         status={transactionStatus}
-        connectionMethod={connectionMethod as "passkey" | "phantom"}
+        connectionMethod={connectionMethod as "passkey" | "backpack"}
         amount={0.001}
       />
 
