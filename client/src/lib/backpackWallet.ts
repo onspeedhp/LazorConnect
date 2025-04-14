@@ -200,16 +200,50 @@ class BackpackWallet {
       const redirectUrl = baseUrl + '/?backpack=transaction';
       const encodedRedirectUrl = encodeURIComponent(redirectUrl);
       
-      // Create connection URL parameters
-      const params = new URLSearchParams({
-        session: this.session,
-        dapp_encryption_public_key: arrayToBase64(this.dappKeyPair.publicKey),
-        transaction: arrayToBase64(serializedTransaction),
-        redirect_link: encodedRedirectUrl,
-      });
+      // Generate a nonce for encryption
+      const nonce = nacl.randomBytes(24);
       
-      // Form the URL - using the correct base URL as specified in docs
-      const url = `https://backpack.app/ul/v1/sign_transaction?${params.toString()}`;
+      // Prepare the payload object
+      const payload = {
+        transaction: arrayToBase64(serializedTransaction),
+        session: this.session
+        // sendOptions is optional, we'll omit it for now
+      };
+      
+      // Convert payload to JSON string
+      const encoder = new TextEncoder();
+      const payloadBytes = encoder.encode(JSON.stringify(payload));
+      
+      // We need the wallet public key for encryption, which should be available since we're connected
+      if (!this.walletPublicKey) {
+        throw new Error('Wallet public key not available');
+      }
+      
+      // Create shared secret using wallet's public key
+      const walletPubKeyBytes = this.walletPublicKey.toBytes().slice(0, 32);
+      const sharedSecret = nacl.box.before(
+        walletPubKeyBytes,
+        this.dappKeyPair.secretKey
+      );
+      
+      // Encrypt the payload
+      const encryptedPayload = nacl.box.after(
+        payloadBytes,
+        nonce,
+        sharedSecret
+      );
+      
+      if (!encryptedPayload) {
+        throw new Error('Failed to encrypt transaction payload');
+      }
+      
+      // Form the URL - using the correct URL as specified in docs
+      const url = `https://backpack.app/ul/v1/signAndSendTransaction?${new URLSearchParams({
+        dapp_encryption_public_key: arrayToBase64(this.dappKeyPair.publicKey),
+        nonce: arrayToBase64(nonce),
+        payload: arrayToBase64(encryptedPayload),
+        redirect_link: encodedRedirectUrl
+      }).toString()}`;
       
       console.log('Sending transaction to Backpack with URL:', url);
       
