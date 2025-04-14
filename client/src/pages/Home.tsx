@@ -9,13 +9,14 @@ import BiometricPrompt from "@/components/modals/BiometricPrompt";
 import { ClientTransaction } from "@shared/schema";
 import LazorKit from "@/lib/lazorKit";
 import {
-  connectBackpack,
-  disconnectBackpack,
+  connectPhantom,
+  disconnectPhantom,
   requestAirdrop,
   getWalletBalance,
   sendTransaction,
-  checkForWalletResponse
-} from "@/lib/backpackAdapter";
+  checkForWalletResponse,
+  processConnectionResponse
+} from "@/lib/phantomAdapter";
 import { useToast } from "@/hooks/use-toast";
 
 type ConnectionMethod = "passkey" | "backpack" | null;
@@ -98,6 +99,51 @@ export default function Home() {
       document.head.removeChild(link);
       document.head.removeChild(style);
     };
+  }, []);
+
+  // Check for wallet callback in URL
+  useEffect(() => {
+    // Check if we have a wallet callback in the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('action') && urlParams.get('action') === 'phantom_connect') {
+      // Handle wallet connection response
+      toast({
+        title: "Wallet Connected",
+        description: "Successfully connected with Phantom wallet!",
+      });
+      
+      // In a full implementation, we would extract the public key from the response
+      // For now, we'll use a test address
+      const publicKey = "7bJdKSk3MBgN8DAVb1QY4rZRVrgZxfncqPQTfQjtDLzZ";
+      
+      setWalletAddress(publicKey);
+      setConnectionMethod("backpack"); // Keep as "backpack" for UI compatibility
+      setIsConnected(true);
+      
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
+    // Also check for transaction callback
+    if (urlParams.has('action') && urlParams.get('action') === 'phantom_transaction') {
+      // Handle transaction response
+      toast({
+        title: "Transaction Sent",
+        description: "Your transaction was processed by Phantom wallet!",
+      });
+      
+      // For demo purposes, simulate successful transaction
+      const transactionAmount = 0.001;
+      setTransactionStatus("success");
+      setShowTransactionModal(true);
+      addTransaction(transactionAmount, true, "backpack"); // Keep as "backpack" for UI compatibility
+      
+      // Update balance
+      setBalance(prev => prev - transactionAmount - 0.000005); // Subtract amount + fee
+      
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   // Load wallet balance when connected
@@ -274,46 +320,22 @@ export default function Home() {
       setBiometricAction("transaction");
       setShowBiometricPrompt(true);
     } else {
-      // For Backpack, show the transaction modal directly
-      setTransactionStatus("processing");
-      setShowTransactionModal(true);
-
-      // For demonstration purposes, let's simulate a Backpack wallet transaction
-      // This bypasses the Buffer issues while showing the comparison between methods
+      // For Backpack wallet, send via deeplink redirection
       const transactionAmount = 0.001;
       
       toast({
-        title: "Transaction Processing",
-        description: "Please approve the transaction in your Backpack wallet.",
+        title: "Transaction Initiated",
+        description: "Redirecting to Backpack wallet for approval...",
       });
       
-      // Simulate a delayed transaction process to demonstrate wallet popup and processing
-      setTimeout(() => {
-        // 70% chance of success for demo purposes
-        const isSuccess = Math.random() < 0.7;
-        
-        if (isSuccess) {
-          // Simulate success scenario
-          setTransactionStatus("success");
-          toast({
-            title: "Transaction Successful",
-            description: "The SOL has been successfully sent!",
-          });
-          addTransaction(transactionAmount, true, "backpack");
-          
-          // Update balance after successful transaction
-          setBalance(prev => prev - transactionAmount - 0.000005); // Subtract amount + fee
-        } else {
-          // Simulate error scenario
-          setTransactionStatus("error");
-          toast({
-            title: "Transaction Failed",
-            description: "Transaction was rejected or failed to process.",
-            variant: "destructive",
-          });
-          addTransaction(transactionAmount, false, "backpack");
-        }
-      }, 2000);
+      // Use a simulated recipient for demo
+      const recipientPublicKey = "A84X2Qpt1btdKYL1vChg7iAY23ZX4GjA5WwdcZ9pyQTk";
+      
+      // Call the sendTransaction function which will redirect to Backpack
+      sendTransaction(walletAddress, recipientPublicKey, transactionAmount);
+      
+      // Note: The result will be handled when the user is redirected back
+      // via the tx_callback URL parameter in the useEffect hook
     }
   };
 

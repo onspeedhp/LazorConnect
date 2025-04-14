@@ -23,28 +23,22 @@ export const getBackpackDeepLink = (): string => {
   return 'https://backpack.app';
 };
 
-// Connect to Backpack wallet
+// Connect to Backpack wallet - returns empty string because we're redirecting
 export const connectBackpack = (): string => {
-  if (isMobile()) {
-    // On mobile, we'd redirect to Backpack app via deeplink
-    const redirectUrl = `${window.location.origin}${window.location.pathname}?action=wallet_callback`;
-    
-    // Simplified deeplink format for demo purposes
-    const deeplink = `https://backpack.app/ul/v1/connect?app_url=example.com&redirect_link=${encodeURIComponent(redirectUrl)}&cluster=devnet`;
-    
-    // Log the deeplink for demonstration
-    console.log(`Would redirect to Backpack via: ${deeplink}`);
-    
-    // In a real implementation, we would:
-    // window.location.href = deeplink;
-    
-    // For demo purposes, return a simulated wallet address
-    return "7bJdKSk3MBgN8DAVb1QY4rZRVrgZxfncqPQTfQjtDLzZ";
-  } else {
-    // For desktop demo, just return a simulated wallet address
-    console.log("Simulating Backpack connection on desktop");
-    return "7bJdKSk3MBgN8DAVb1QY4rZRVrgZxfncqPQTfQjtDLzZ";
-  }
+  // Create the redirect URL to send the user back to our app
+  const redirectUrl = `${window.location.origin}${window.location.pathname}?action=wallet_callback`;
+  
+  // Create the Backpack deeplink with proper parameters
+  const deeplink = `https://backpack.app/ul/v1/connect?app_url=${encodeURIComponent('https://example.com')}&redirect_link=${encodeURIComponent(redirectUrl)}&cluster=devnet`;
+  
+  // Log the deeplink for debugging
+  console.log(`Redirecting to Backpack via: ${deeplink}`);
+  
+  // Redirect the user to Backpack
+  window.location.href = deeplink;
+  
+  // Return empty string since we're redirecting and don't have the address yet
+  return "";
 };
 
 // Check for wallet response when returning from deeplink
@@ -92,23 +86,23 @@ export const requestAirdrop = async (publicKey: string, amount: number = 1): Pro
   }
 };
 
-// Send a transaction
+// Send a transaction - redirects to Backpack for signing
 export const sendTransaction = (senderPublicKey: string, recipientPublicKey: string, amount: number): void => {
-  if (isMobile()) {
-    // On mobile, we'd create a URL with transaction details and redirect to Backpack
-    const redirectUrl = encodeURIComponent(`${window.location.origin}${window.location.pathname}?action=tx_callback`);
-    
-    // Simplified deeplink for demo purposes
-    const deeplink = `https://backpack.app/ul/v1/signAndSendTransaction?redirect_link=${redirectUrl}`;
-    
-    // Log the deeplink for demonstration
-    console.log(`Would send transaction via Backpack deeplink: ${deeplink}`);
-    console.log(`Transaction details: ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`);
-    
-    // In a real implementation, we would:
-    // window.location.href = deeplink;
-  } else {
-    // For desktop demo
-    console.log(`Simulating sending ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`);
-  }
+  // Create the redirect URL to send the user back to our app
+  const redirectUrl = `${window.location.origin}${window.location.pathname}?action=tx_callback`;
+  
+  // In a production app, we would need to create and serialize a real transaction,
+  // encrypt it according to Backpack's protocol, and include it in the payload.
+  // For this demo, we'll use a simplified deeplink that won't actually send a transaction
+  // but will demonstrate the redirect flow.
+  
+  // Simplified deeplink for demonstration
+  const deeplink = `https://backpack.app/ul/v1/signAndSendTransaction?redirect_link=${encodeURIComponent(redirectUrl)}`;
+  
+  // Log transaction details for debugging
+  console.log(`Transaction details: ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`);
+  console.log(`Redirecting to Backpack via: ${deeplink}`);
+  
+  // Redirect the user to Backpack
+  window.location.href = deeplink;
 };
