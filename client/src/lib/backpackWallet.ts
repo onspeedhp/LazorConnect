@@ -36,8 +36,8 @@ class BackpackWallet {
     );
 
     // Log the redirect URLs for debugging
-    // Make sure we use the correct port (5000) for redirects
-    const baseUrl = window.location.origin.replace(/:3000\b/, ":5000");
+    // Always use port 5000 for our application
+    const baseUrl = window.location.protocol + "//" + window.location.hostname + ":5000";
     const redirectLinks = {
       connect: `${baseUrl}/?backpack=connect`,
       transaction: `${baseUrl}/?backpack=transaction`,
@@ -63,8 +63,8 @@ class BackpackWallet {
 
     // Use the class property for iOS detection
 
-    // Get baseUrl with correct port
-    const baseUrl = window.location.origin.replace(/:3000\b/, ":5000");
+    // Always use port 5000 for our application
+    const baseUrl = window.location.protocol + "//" + window.location.hostname + ":5000";
 
     // According to Backpack docs, we should use a properly formatted redirect URL
     // Format: app-url://action where Backpack will append response parameters
@@ -198,8 +198,8 @@ class BackpackWallet {
     this.session = null;
     this.walletPublicKey = null;
 
-    // Get baseUrl with correct port
-    const baseUrl = window.location.origin.replace(/:3000\b/, ":5000");
+    // Always use port 5000 for our application
+    const baseUrl = window.location.protocol + "//" + window.location.hostname + ":5000";
 
     // No need to go through Backpack app for disconnection - we can just redirect locally
     // to clear URL parameters and allow the BackpackResponseHandler to manage the state
@@ -225,8 +225,8 @@ class BackpackWallet {
         verifySignatures: false,
       });
 
-      // Get baseUrl with correct port
-      const baseUrl = window.location.origin.replace(/:3000\b/, ":5000");
+      // Always use port 5000 for our application
+      const baseUrl = window.location.protocol + "//" + window.location.hostname + ":5000";
 
       // According to Backpack docs, we need a properly formatted redirect URL
       // Format must match what's expected in the documentation
