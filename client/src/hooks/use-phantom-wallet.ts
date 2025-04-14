@@ -71,7 +71,7 @@ export function usePhantomWallet() {
   /**
    * Process connection response from Phantom wallet
    * This implementation focuses on handling the callback URL and extracting
-   * the user's wallet public key for display and interaction
+   * the user's wallet public key through the encrypted payload
    */
   const processConnectionResponse = useCallback((url: string): { publicKey: string; session: string } | null => {
     try {
@@ -92,69 +92,13 @@ export function usePhantomWallet() {
         return null;
       }
 
-      // Try multiple approaches to find the wallet public key
-      
-      // 1. Look for direct public key parameters (simplest case)
-      const directPublicKeys = [
-        params.get("phantom_address"),
-        params.get("public_key"),
-        params.get("address"),
-        params.get("wallet"),
-        params.get("account")
-      ].filter(Boolean);
-      
-      if (directPublicKeys.length > 0) {
-        const directPublicKey = directPublicKeys[0] as string;
-        console.log("Found direct public key in URL:", directPublicKey);
-        
-        // Update state with the found public key
-        setWalletState(prev => ({
-          ...prev,
-          publicKey: directPublicKey,
-          session: "direct-connection"
-        }));
-        
-        return {
-          publicKey: directPublicKey,
-          session: "direct-connection"
-        };
-      }
-      
-      // 2. Look for Solana-specific address formats
-      const allParamValues: string[] = [];
-      params.forEach((value) => allParamValues.push(value));
-      
-      // Try to find any parameter that looks like a Solana public key
-      // Solana addresses are base58 encoded and typically 32-44 characters
-      const possibleAddresses = allParamValues.filter(value => {
-        // Check if it looks like a Solana address (base58, right length)
-        return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
-      });
-      
-      if (possibleAddresses.length > 0) {
-        const solanaAddress = possibleAddresses[0];
-        console.log("Found possible Solana address in parameters:", solanaAddress);
-        
-        // Update state with the found public key
-        setWalletState(prev => ({
-          ...prev,
-          publicKey: solanaAddress,
-          session: "inferred-connection"
-        }));
-        
-        return {
-          publicKey: solanaAddress,
-          session: "inferred-connection"
-        };
-      }
-
-      // 3. Try the standard encrypted flow
+      // Only use the standard encrypted flow for consistency
       const phantomEncryptionPublicKey = params.get("phantom_encryption_public_key");
       const data = params.get("data");
       const nonce = params.get("nonce");
       
       if (phantomEncryptionPublicKey && data && nonce && walletState.dappKeyPair) {
-        console.log("Attempting encrypted connection method");
+        console.log("Processing encrypted connection data");
         
         try {
           // Create shared secret
@@ -163,50 +107,45 @@ export function usePhantomWallet() {
             walletState.dappKeyPair.secretKey
           );
           
-          // Update the shared secret in state first
+          // Decrypt the connection data
+          const connectData = decryptWithSecret(data, nonce, sharedSecretDapp);
+          
+          // Save connection state
           setWalletState(prev => ({
             ...prev,
-            sharedSecret: sharedSecretDapp
+            sharedSecret: sharedSecretDapp,
+            session: connectData.session,
+            publicKey: connectData.public_key
           }));
           
-          // Then attempt to decrypt with the updated state
-          // Note: This may not work in the same render cycle, might need to handle differently
-          try {
-            // For now, directly use the sharedSecretDapp without relying on state update
-            const connectData = decryptWithSecret(data, nonce, sharedSecretDapp);
-            
-            // Save connection state
-            setWalletState(prev => ({
-              ...prev,
-              sharedSecret: sharedSecretDapp,
-              session: connectData.session,
-              publicKey: connectData.public_key
-            }));
-            
-            console.log("Successfully decrypted connection data:", connectData.public_key);
-            
-            return {
-              publicKey: connectData.public_key,
-              session: connectData.session
-            };
-          } catch (decryptError) {
-            console.error("Error decrypting connection payload:", decryptError);
-          }
-        } catch (encryptError) {
-          console.error("Error establishing shared secret:", encryptError);
+          console.log("Successfully decrypted connection data:", connectData.public_key);
+          
+          return {
+            publicKey: connectData.public_key,
+            session: connectData.session
+          };
+        } catch (error) {
+          console.error("Error processing encrypted connection data:", error);
         }
       } else {
-        console.log("Missing encryption parameters, cannot use encrypted connection flow");
+        console.log("Missing required encryption parameters for connection");
+        console.log("Required: phantom_encryption_public_key, data, nonce, and dappKeyPair");
+        console.log("Available: ", {
+          hasPhantomKey: !!phantomEncryptionPublicKey,
+          hasData: !!data,
+          hasNonce: !!nonce,
+          hasDappKeyPair: !!walletState.dappKeyPair
+        });
       }
       
-      // If we reach here, we couldn't find the public key
-      console.error("Could not find wallet public key in the callback URL");
+      // If we reach here, we couldn't find or decrypt the public key
+      console.error("Could not process wallet connection response");
       return null;
     } catch (error) {
       console.error("Error processing connection response:", error);
       return null;
     }
-  }, [walletState.dappKeyPair, decryptPayload]);
+  }, [walletState.dappKeyPair]);
 
   // Helper function for one-time decryption without relying on state updates
   const decryptWithSecret = (data: string, nonce: string, secret: Uint8Array): any => {

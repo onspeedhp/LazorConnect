@@ -140,7 +140,7 @@ export default function Home() {
           }
         }
         
-        // Process connection response from the URL using our hook function
+        // Process connection response from the URL using encrypted method only
         const response = processConnectionResponse(window.location.href);
         
         if (response && response.publicKey) {
@@ -159,27 +159,9 @@ export default function Home() {
           setConnectionMethod("backpack"); // Keep as "backpack" for UI compatibility
           setIsConnected(true);
         } else {
-          // If we couldn't process the response, try an alternative approach
-          // This is a fallback in case the standard process fails
-          console.log("Could not process standard Phantom response, trying fallback");
-          
-          // Check for direct public key in URL (some wallet implementations might do this)
-          const directPublicKey = urlParams.get('phantom_address') || urlParams.get('public_key');
-          
-          if (!directPublicKey) {
-            // Immediately throw an error if we can't find a direct public key
-            throw new Error("Could not find direct public key in URL parameters. URL: " + window.location.href);
-          }
-          
-          console.log("Found direct public key in URL parameters:", directPublicKey);
-          setWalletAddress(directPublicKey);
-          setConnectionMethod("backpack");
-          setIsConnected(true);
-          
-          toast({
-            title: "Wallet Connected",
-            description: "Successfully connected with Phantom wallet!",
-          });
+          // If we couldn't decrypt the connection data, show an error
+          // No fallback methods - only use the decrypted data for consistent wallet address
+          throw new Error("Could not decrypt connection data from Phantom wallet. URL: " + window.location.href);
         }
       } catch (error) {
         console.error("Error processing Phantom connection:", error);
