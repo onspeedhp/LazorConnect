@@ -163,50 +163,20 @@ export default function Home() {
           // Check for direct public key in URL (some wallet implementations might do this)
           const directPublicKey = urlParams.get('phantom_address') || urlParams.get('public_key');
           
-          if (directPublicKey) {
-            console.log("Found direct public key in URL parameters:", directPublicKey);
-            setWalletAddress(directPublicKey);
-            setConnectionMethod("backpack");
-            setIsConnected(true);
-            
-            toast({
-              title: "Wallet Connected",
-              description: "Successfully connected with Phantom wallet!",
-            });
-          } else {
-            // Try to find any parameter that looks like a Solana address
-            console.log("Searching for any parameter that might be a Solana address...");
-            const allParams: string[] = [];
-            urlParams.forEach(value => allParams.push(value));
-            
-            // Solana addresses are base58 encoded and typically 32-44 characters
-            const possibleAddresses = allParams.filter(value => {
-              return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
-            });
-            
-            if (possibleAddresses.length > 0) {
-              const solanaAddress = possibleAddresses[0];
-              console.log("Found possible Solana address in URL parameters:", solanaAddress);
-              
-              setWalletAddress(solanaAddress);
-              setConnectionMethod("backpack");
-              setIsConnected(true);
-              
-              toast({
-                title: "Wallet Connected",
-                description: "Successfully connected with Phantom wallet!",
-              });
-            } else {
-              // Show error message if we can't detect the wallet address
-              console.error("Could not automatically detect wallet address");
-              
-              toast({
-                title: "Connection Failed",
-                description: "Could not retrieve your Phantom wallet address. Please try again.",
-                variant: "destructive",
-              });
-            }
+          if (!directPublicKey) {
+            // Immediately throw an error if we can't find a direct public key
+            throw new Error("Could not find direct public key in URL parameters. URL: " + window.location.href);
           }
+          
+          console.log("Found direct public key in URL parameters:", directPublicKey);
+          setWalletAddress(directPublicKey);
+          setConnectionMethod("backpack");
+          setIsConnected(true);
+          
+          toast({
+            title: "Wallet Connected",
+            description: "Successfully connected with Phantom wallet!",
+          });
         }
       } catch (error) {
         console.error("Error processing Phantom connection:", error);
