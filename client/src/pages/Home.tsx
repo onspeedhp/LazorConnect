@@ -109,11 +109,44 @@ export default function Home() {
     // Handle Phantom connection callback
     if (urlParams.has('action') && urlParams.get('action') === 'phantom_connect') {
       try {
+        // Enhanced logging for debugging
+        console.log("Phantom connection callback received");
+        console.log("Full URL:", window.location.href);
+        console.log("URL parameters:");
+        urlParams.forEach((value, key) => {
+          // Truncate long values for readability
+          const displayValue = value.length > 30 
+            ? `${value.substring(0, 30)}...` 
+            : value;
+          console.log(`  ${key}: ${displayValue}`);
+        });
+        
+        // Check for connection ID parameter (helps correlate request and response)
+        const connectionId = urlParams.get('connection_id');
+        if (connectionId) {
+          try {
+            const storedConnectionId = localStorage.getItem("phantom_connection_id");
+            const timestamp = localStorage.getItem("phantom_connection_timestamp");
+            console.log("Connection tracking:", {
+              received: connectionId,
+              stored: storedConnectionId,
+              timestamp: timestamp ? new Date(parseInt(timestamp)).toISOString() : 'none'
+            });
+          } catch (e) {
+            console.log("Could not read connection tracking data from localStorage");
+          }
+        }
+        
         // Process connection response from the URL
         const response = processConnectionResponse(window.location.href);
         
         if (response && response.publicKey) {
           // Successfully processed the response and got a public key
+          console.log("Successfully processed Phantom connection:", {
+            publicKey: response.publicKey,
+            session: response.session
+          });
+          
           toast({
             title: "Wallet Connected",
             description: "Successfully connected with Phantom wallet!",
@@ -122,8 +155,6 @@ export default function Home() {
           setWalletAddress(response.publicKey);
           setConnectionMethod("backpack"); // Keep as "backpack" for UI compatibility
           setIsConnected(true);
-          
-          console.log("Connected to wallet:", response.publicKey);
         } else {
           // If we couldn't process the response, try an alternative approach
           // This is a fallback in case the standard process fails
@@ -133,6 +164,7 @@ export default function Home() {
           const directPublicKey = urlParams.get('phantom_address') || urlParams.get('public_key');
           
           if (directPublicKey) {
+            console.log("Found direct public key in URL parameters:", directPublicKey);
             setWalletAddress(directPublicKey);
             setConnectionMethod("backpack");
             setIsConnected(true);
@@ -142,14 +174,38 @@ export default function Home() {
               description: "Successfully connected with Phantom wallet!",
             });
           } else {
-            // Show error message if we can't detect the wallet address
-            console.error("Could not automatically detect wallet address");
+            // Try to find any parameter that looks like a Solana address
+            console.log("Searching for any parameter that might be a Solana address...");
+            const allParams: string[] = [];
+            urlParams.forEach(value => allParams.push(value));
             
-            toast({
-              title: "Connection Failed",
-              description: "Could not retrieve your Phantom wallet address. Please try again.",
-              variant: "destructive",
+            // Solana addresses are base58 encoded and typically 32-44 characters
+            const possibleAddresses = allParams.filter(value => {
+              return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
             });
+            
+            if (possibleAddresses.length > 0) {
+              const solanaAddress = possibleAddresses[0];
+              console.log("Found possible Solana address in URL parameters:", solanaAddress);
+              
+              setWalletAddress(solanaAddress);
+              setConnectionMethod("backpack");
+              setIsConnected(true);
+              
+              toast({
+                title: "Wallet Connected",
+                description: "Successfully connected with Phantom wallet!",
+              });
+            } else {
+              // Show error message if we can't detect the wallet address
+              console.error("Could not automatically detect wallet address");
+              
+              toast({
+                title: "Connection Failed",
+                description: "Could not retrieve your Phantom wallet address. Please try again.",
+                variant: "destructive",
+              });
+            }
           }
         }
       } catch (error) {

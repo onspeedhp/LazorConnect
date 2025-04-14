@@ -293,8 +293,8 @@ export const disconnectPhantom = (): void => {
     // Still clear connection state even if there was an error
     dappKeyPair = null;
     sharedSecret = null;
-    session = null;
-    phantomWalletPublicKey = null;
+    session = "";
+    phantomWalletPublicKey = "";
   }
 };
 
@@ -329,7 +329,7 @@ export const requestAirdrop = async (publicKey: string, amount: number = 1): Pro
 
 // Send a transaction
 export const sendTransaction = (senderPublicKey: string, recipientPublicKey: string, amount: number): void => {
-  if (!session && phantomWalletPublicKey === null) {
+  if (!session && phantomWalletPublicKey === "") {
     console.error("Not connected to Phantom");
     return;
   }
