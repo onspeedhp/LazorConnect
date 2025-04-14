@@ -225,9 +225,9 @@ export default function Home() {
     }
   };
 
-  const connectWithBackpack = async () => {
+  const connectWithBackpack = () => {
     try {
-      const publicKey = await connectBackpack();
+      const publicKey = connectBackpack(); // This is not an async function in our implementation
       if (publicKey) {
         setWalletAddress(publicKey);
         setConnectionMethod("backpack");
