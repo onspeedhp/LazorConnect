@@ -9,6 +9,7 @@ import BiometricPrompt from "@/components/modals/BiometricPrompt";
 import { ClientTransaction } from "@shared/schema";
 import LazorKit from "@/lib/lazorKit";
 import { usePhantomWallet } from "@/hooks/use-phantom-wallet";
+import { useBackpackWallet } from "@/hooks/use-backpack-wallet";
 import { useToast } from "@/hooks/use-toast";
 
 type ConnectionMethod = "passkey" | "backpack" | null;
@@ -36,16 +37,27 @@ export default function Home() {
     "connect" | "transaction"
   >("connect");
 
-  // Use our custom Phantom wallet hook
+  // Use our custom wallet hooks
   const { 
     connectPhantom, 
-    processConnectionResponse, 
+    processConnectionResponse: processPhantomResponse, 
     disconnectPhantom, 
-    getWalletBalance, 
-    requestAirdrop, 
-    sendTransaction,
-    checkForWalletResponse 
+    getWalletBalance: getPhantomBalance, 
+    requestAirdrop: requestPhantomAirdrop, 
+    sendTransaction: sendPhantomTransaction,
+    checkForWalletResponse: checkForPhantomResponse 
   } = usePhantomWallet();
+  
+  // Use Backpack wallet hook
+  const {
+    connectBackpack,
+    processConnectionResponse: processBackpackResponse,
+    disconnectBackpack,
+    getWalletBalance: getBackpackBalance,
+    requestAirdrop: requestBackpackAirdrop,
+    sendTransaction: sendBackpackTransaction,
+    checkForWalletResponse: checkForBackpackResponse
+  } = useBackpackWallet();
   
   const { toast } = useToast();
 
@@ -108,12 +120,13 @@ export default function Home() {
   useEffect(() => {
     // Check if we have a wallet callback in the URL
     const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
     
-    // Handle Phantom connection callback
-    if (urlParams.has('action') && urlParams.get('action') === 'phantom_connect') {
+    // Handle wallet connection callbacks
+    if (action && (action === 'phantom_connect' || action === 'backpack_connect')) {
       try {
         // Enhanced logging for debugging
-        console.log("Phantom connection callback received");
+        console.log(`${action === 'phantom_connect' ? 'Phantom' : 'Backpack'} connection callback received`);
         console.log("Full URL:", window.location.href);
         console.log("URL parameters:");
         urlParams.forEach((value, key) => {
@@ -128,8 +141,10 @@ export default function Home() {
         const connectionId = urlParams.get('connection_id');
         if (connectionId) {
           try {
-            const storedConnectionId = localStorage.getItem("phantom_connection_id");
-            const timestamp = localStorage.getItem("phantom_connection_timestamp");
+            const idStorageKey = action === 'phantom_connect' ? "phantom_connection_id" : "backpack_connection_id";
+            const timestampKey = action === 'phantom_connect' ? "phantom_connection_timestamp" : "backpack_connection_timestamp";
+            const storedConnectionId = localStorage.getItem(idStorageKey);
+            const timestamp = localStorage.getItem(timestampKey);
             console.log("Connection tracking:", {
               received: connectionId,
               stored: storedConnectionId,
@@ -140,31 +155,43 @@ export default function Home() {
           }
         }
         
-        // Process connection response from the URL using encrypted method only
-        const response = processConnectionResponse(window.location.href);
+        // Process connection response from the URL
+        let publicKey: string | null = null;
+        let walletType: "backpack" | null = null;
         
-        if (response && response.publicKey) {
-          // Successfully processed the response and got a public key
-          console.log("Successfully processed Phantom connection:", {
-            publicKey: response.publicKey,
-            session: response.session
-          });
-          
+        if (action === 'phantom_connect') {
+          const response = processPhantomResponse(window.location.href);
+          if (response && response.publicKey) {
+            publicKey = response.publicKey;
+            walletType = "backpack"; // Phantom uses "backpack" for UI compatibility
+            console.log("Successfully processed Phantom connection:", {
+              publicKey: response.publicKey,
+              session: response.session
+            });
+          }
+        } else if (action === 'backpack_connect') {
+          publicKey = processBackpackResponse(window.location.href);
+          if (publicKey) {
+            walletType = "backpack";
+            console.log("Successfully processed Backpack connection:", publicKey);
+          }
+        }
+        
+        if (publicKey && walletType) {
           toast({
             title: "Wallet Connected",
-            description: "Successfully connected with Phantom wallet!",
+            description: `Successfully connected with ${action === 'phantom_connect' ? 'Phantom' : 'Backpack'} wallet!`,
           });
           
-          setWalletAddress(response.publicKey);
-          setConnectionMethod("backpack"); // Keep as "backpack" for UI compatibility
+          setWalletAddress(publicKey);
+          setConnectionMethod(walletType);
           setIsConnected(true);
         } else {
-          // If we couldn't decrypt the connection data, show an error
-          // No fallback methods - only use the decrypted data for consistent wallet address
-          throw new Error("Could not decrypt connection data from Phantom wallet. URL: " + window.location.href);
+          // If we couldn't get the public key, show an error
+          throw new Error(`Could not process ${action === 'phantom_connect' ? 'Phantom' : 'Backpack'} connection. URL: ${window.location.href}`);
         }
       } catch (error) {
-        console.error("Error processing Phantom connection:", error);
+        console.error(`Error processing ${action === 'phantom_connect' ? 'Phantom' : 'Backpack'} connection:`, error);
         toast({
           title: "Connection Error",
           description: "Error processing wallet connection response.",
@@ -176,11 +203,12 @@ export default function Home() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
     
-    // Also check for transaction callback
-    if (urlParams.has('action') && urlParams.get('action') === 'phantom_transaction') {
+    // Handle wallet transaction callbacks
+    if (action && (action === 'phantom_transaction' || action === 'backpack_transaction')) {
       // Handle transaction response
       let signatureParam = urlParams.get('signature');
       let transactionSuccess = true;
+      const walletType = action === 'phantom_transaction' ? 'Phantom' : 'Backpack';
       
       // Check if there's an error parameter
       if (urlParams.has('errorCode') || urlParams.has('errorMessage')) {
@@ -196,7 +224,7 @@ export default function Home() {
           title: "Transaction Sent",
           description: signatureParam 
             ? `Transaction signed with signature: ${signatureParam.substring(0, 8)}...` 
-            : "Your transaction was processed by Phantom wallet!",
+            : `Your transaction was processed by ${walletType} wallet!`,
         });
       }
       
@@ -204,7 +232,7 @@ export default function Home() {
       const transactionAmount = 0.001;
       setTransactionStatus(transactionSuccess ? "success" : "error");
       setShowTransactionModal(true);
-      addTransaction(transactionAmount, transactionSuccess, "backpack"); // Keep as "backpack" for UI compatibility
+      addTransaction(transactionAmount, transactionSuccess, "backpack"); // Use "backpack" for UI
       
       // Update balance if transaction was successful
       if (transactionSuccess) {
@@ -214,7 +242,7 @@ export default function Home() {
       // Clean up the URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [processConnectionResponse, toast]);
+  }, [processPhantomResponse, processBackpackResponse, toast]);
 
   // Load wallet balance when connected
   useEffect(() => {
@@ -223,7 +251,7 @@ export default function Home() {
         try {
           let currentBalance = 0;
           if (connectionMethod === "backpack") {
-            currentBalance = await getWalletBalance(walletAddress);
+            currentBalance = await getPhantomBalance(walletAddress); // Use Phantom for now
           } else if (connectionMethod === "passkey") {
             currentBalance = await LazorKit.getBalance();
           }
@@ -235,7 +263,7 @@ export default function Home() {
     };
 
     fetchBalance();
-  }, [isConnected, walletAddress, connectionMethod, getWalletBalance]);
+  }, [isConnected, walletAddress, connectionMethod, getPhantomBalance]);
 
   const handleRequestAirdrop = async () => {
     if (!isConnected || isAirdropLoading) return;
@@ -249,7 +277,7 @@ export default function Home() {
     try {
       let signature = null;
       if (connectionMethod === "backpack") {
-        signature = await requestAirdrop(walletAddress, 1);
+        signature = await requestPhantomAirdrop(walletAddress, 1);
       } else if (connectionMethod === "passkey") {
         signature = await LazorKit.requestAirdrop(1);
       }
@@ -257,7 +285,7 @@ export default function Home() {
       if (signature) {
         // Update balance after successful airdrop
         if (connectionMethod === "backpack") {
-          const newBalance = await getWalletBalance(walletAddress);
+          const newBalance = await getPhantomBalance(walletAddress);
           setBalance(newBalance);
         } else {
           const newBalance = await LazorKit.getBalance();
@@ -337,38 +365,53 @@ export default function Home() {
 
   const connectWithBackpack = () => {
     try {
-      // This will redirect to Phantom wallet
-      connectPhantom();
+      // This will redirect to Backpack wallet
+      connectBackpack();
       
       // No need to set wallet address here, as it will be handled in the URL callback
       toast({
         title: "Connection Initiated",
-        description: "Redirecting to Phantom wallet for connection...",
+        description: "Redirecting to Backpack wallet for connection...",
       });
     } catch (error) {
-      console.error("Error connecting with Phantom:", error);
+      console.error("Error connecting with Backpack:", error);
       toast({
         title: "Connection Error",
-        description: "An error occurred while connecting with Phantom wallet.",
+        description: "An error occurred while connecting with Backpack wallet.",
         variant: "destructive",
       });
     }
   };
 
   const handleDisconnect = async () => {
-    if (connectionMethod === "backpack") {
-      await disconnectPhantom();
-    } else if (connectionMethod === "passkey") {
-      await LazorKit.disconnect();
-    }
+    try {
+      if (connectionMethod === "backpack") {
+        // If connected with Phantom
+        if (walletAddress.startsWith('P')) {
+          await disconnectPhantom();
+        } else {
+          // If connected with Backpack
+          await disconnectBackpack();
+        }
+      } else if (connectionMethod === "passkey") {
+        await LazorKit.disconnect();
+      }
 
-    setIsConnected(false);
-    setConnectionMethod(null);
-    setWalletAddress("");
-    toast({
-      title: "Disconnected",
-      description: "You've been disconnected from your wallet.",
-    });
+      setIsConnected(false);
+      setConnectionMethod(null);
+      setWalletAddress("");
+      toast({
+        title: "Disconnected",
+        description: "You've been disconnected from your wallet.",
+      });
+    } catch (error) {
+      console.error("Error disconnecting wallet:", error);
+      toast({
+        title: "Disconnect Error",
+        description: "An error occurred while disconnecting. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSendTransaction = async () => {
@@ -388,7 +431,7 @@ export default function Home() {
       const recipientPublicKey = "A84X2Qpt1btdKYL1vChg7iAY23ZX4GjA5WwdcZ9pyQTk";
       
       // Call the sendTransaction function which will redirect to Phantom
-      sendTransaction(walletAddress, recipientPublicKey, transactionAmount);
+      sendPhantomTransaction(walletAddress, recipientPublicKey, transactionAmount);
       
       // Note: The result will be handled when the user is redirected back
       // via the phantom_transaction URL parameter in the useEffect hook
