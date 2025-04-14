@@ -3,7 +3,7 @@ import { ClientTransaction } from '@shared/schema';
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardProps {
-  connectionMethod: 'passkey' | 'phantom' | 'backpack';
+  connectionMethod: 'passkey' | 'phantom';
   walletAddress: string;
   onDisconnect: () => void;
   onSendTransaction: () => void;
@@ -40,6 +40,22 @@ const Dashboard: FC<DashboardProps> = ({
     return new Date(timestamp).toLocaleString();
   };
 
+  // Connection method benefits
+  const connectionBenefits = {
+    passkey: [
+      "No wallet app needed - just use your fingerprint or face",
+      "50% faster transactions than traditional wallets",
+      "No extensions required",
+      "Works on any device including mobile"
+    ],
+    phantom: [
+      "Industry standard wallet connection",
+      "Requires extension or app installation",
+      "Multiple steps for transaction approval",
+      "Great for advanced users"
+    ]
+  };
+
   return (
     <section className="animate-fade-in">
       <div className="bg-white rounded-2xl p-5 shadow-sm mb-6">
@@ -58,18 +74,12 @@ const Dashboard: FC<DashboardProps> = ({
             <div className="flex items-center">
               <div 
                 className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 text-white ${
-                  connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 
-                  connectionMethod === 'phantom' ? 'bg-[#7857FF]' : 'bg-[#E93D44]'
+                  connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 'bg-[#7857FF]'
                 }`}
               >
-                <i className={`fas ${
-                  connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'
-                } text-xs`}></i>
+                <i className={`fas ${connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'} text-xs`}></i>
               </div>
-              <span className="text-sm font-medium">Connected via {
-                connectionMethod === 'passkey' ? 'Passkey' : 
-                connectionMethod === 'phantom' ? 'Phantom' : 'Backpack'
-              }</span>
+              <span className="text-sm font-medium">Connected via {connectionMethod === 'passkey' ? 'Passkey' : 'Phantom'}</span>
             </div>
             <p className="text-xs text-[#9FA3B5] font-mono mt-1">{truncateAddress(walletAddress)}</p>
           </div>
@@ -161,16 +171,10 @@ const Dashboard: FC<DashboardProps> = ({
                   <span className="font-medium">Send {tx.amount} SOL</span>
                 </div>
                 <div className="flex items-center">
-                  <div className={`w-4 h-4 rounded-full ${
-                    tx.connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 
-                    tx.connectionMethod === 'phantom' ? 'bg-[#7857FF]' : 'bg-[#E93D44]'
-                  } flex items-center justify-center mr-1`}>
+                  <div className={`w-4 h-4 rounded-full ${tx.connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 'bg-[#7857FF]'} flex items-center justify-center mr-1`}>
                     <i className={`fas ${tx.connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'} text-white text-xs`}></i>
                   </div>
-                  <span className="text-xs text-[#9FA3B5]">Via {
-                    tx.connectionMethod === 'passkey' ? 'Passkey' : 
-                    tx.connectionMethod === 'phantom' ? 'Phantom' : 'Backpack'
-                  }</span>
+                  <span className="text-xs text-[#9FA3B5]">Via {tx.connectionMethod}</span>
                 </div>
               </div>
               <div className="text-right">
@@ -181,8 +185,47 @@ const Dashboard: FC<DashboardProps> = ({
         )}
       </div>
       
-      {/* Bottom spacing */}
-      <div className="h-8"></div>
+      {/* Connection Method Comparison */}
+      <h3 className="text-lg font-semibold mb-4">Connection Method Comparison</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Passkey Column */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-[#00E5B0]">
+          <div className="flex items-center mb-3">
+            <div className="w-8 h-8 rounded-full bg-[#00E5B0] flex items-center justify-center mr-2 text-white">
+              <i className="fas fa-fingerprint"></i>
+            </div>
+            <h4 className="text-lg font-semibold">Passkey Authentication</h4>
+          </div>
+          
+          <ul className="space-y-2">
+            {connectionBenefits.passkey.map((benefit, index) => (
+              <li key={index} className="flex items-start">
+                <span className="text-[#00E5B0] mr-2"><i className="fas fa-check-circle"></i></span>
+                <span className="text-sm">{benefit}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        
+        {/* Phantom Column */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-[#7857FF]">
+          <div className="flex items-center mb-3">
+            <div className="w-8 h-8 rounded-full bg-[#7857FF] flex items-center justify-center mr-2 text-white">
+              <i className="fas fa-wallet"></i>
+            </div>
+            <h4 className="text-lg font-semibold">Phantom Wallet</h4>
+          </div>
+          
+          <ul className="space-y-2">
+            {connectionBenefits.phantom.map((benefit, index) => (
+              <li key={index} className="flex items-start">
+                <span className="text-[#7857FF] mr-2"><i className="fas fa-info-circle"></i></span>
+                <span className="text-sm">{benefit}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </section>
   );
 };

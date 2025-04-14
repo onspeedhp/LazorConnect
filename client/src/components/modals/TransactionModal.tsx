@@ -6,7 +6,7 @@ interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   status: TransactionStatus;
-  connectionMethod: 'passkey' | 'phantom' | 'backpack';
+  connectionMethod: 'passkey' | 'phantom';
   amount: number;
 }
 
@@ -94,22 +94,13 @@ const TransactionModal: FC<TransactionModalProps> = ({
           </div>
           <div className="flex justify-between pt-2 border-t border-gray-100">
             <span className="text-sm text-[#9FA3B5]">Method</span>
-            <span className="text-sm font-medium">
-              {connectionMethod === 'passkey' ? 'Passkey' : 
-               connectionMethod === 'phantom' ? 'Phantom' : 'Backpack'}
-            </span>
+            <span className="text-sm font-medium">{connectionMethod === 'passkey' ? 'Passkey' : 'Phantom'}</span>
           </div>
         </div>
         <div className="flex justify-center">
           <button 
             onClick={onClose} 
-            className={`py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg transition-all duration-300 ${
-              connectionMethod === 'passkey' 
-                ? 'bg-gradient-to-r from-[#00E5B0] to-[#00A67E] hover:shadow-[#00E5B0]/30' 
-                : connectionMethod === 'phantom'
-                  ? 'bg-gradient-to-r from-[#7857FF] to-[#6447CC] hover:shadow-[#7857FF]/30'
-                  : 'bg-gradient-to-r from-[#E93D44] to-[#B91C1C] hover:shadow-[#E93D44]/30'
-            }`}
+            className="bg-gradient-to-r from-[#7857FF] to-[#6447CC] py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#7857FF]/30 transition-all duration-300"
             style={{ display: status === 'processing' ? 'none' : 'block' }}
           >
             {status === 'error' ? 'Try Again' : 'Close'}
