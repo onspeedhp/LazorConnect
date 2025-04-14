@@ -9,16 +9,16 @@ import BiometricPrompt from "@/components/modals/BiometricPrompt";
 import { ClientTransaction } from "@shared/schema";
 import LazorKit from "@/lib/lazorKit";
 import {
-  connectWallet,
-  disconnectWallet,
+  connectBackpack,
+  disconnectBackpack,
   requestAirdrop,
   getWalletBalance,
   sendTransaction,
-} from "@/lib/walletAdapter";
+  checkForWalletResponse
+} from "@/lib/backpackAdapter";
 import { useToast } from "@/hooks/use-toast";
-import Buffer from "buffer";
 
-type ConnectionMethod = "passkey" | "phantom" | null;
+type ConnectionMethod = "passkey" | "backpack" | null;
 type TransactionStatus = "processing" | "success" | "error";
 
 export default function Home() {
@@ -106,7 +106,7 @@ export default function Home() {
       if (isConnected && walletAddress) {
         try {
           let currentBalance = 0;
-          if (connectionMethod === "phantom") {
+          if (connectionMethod === "backpack") {
             currentBalance = await getWalletBalance(walletAddress);
           } else if (connectionMethod === "passkey") {
             currentBalance = await LazorKit.getBalance();
@@ -132,7 +132,7 @@ export default function Home() {
 
     try {
       let signature = null;
-      if (connectionMethod === "phantom") {
+      if (connectionMethod === "backpack") {
         signature = await requestAirdrop(walletAddress, 1);
       } else if (connectionMethod === "passkey") {
         signature = await LazorKit.requestAirdrop(1);
@@ -140,7 +140,7 @@ export default function Home() {
 
       if (signature) {
         // Update balance after successful airdrop
-        if (connectionMethod === "phantom") {
+        if (connectionMethod === "backpack") {
           const newBalance = await getWalletBalance(walletAddress);
           setBalance(newBalance);
         } else {
@@ -189,7 +189,7 @@ export default function Home() {
   const handleSimulateWalletConnect = () => {
     setShowWalletModal(false);
     simulateDelay(() => {
-      connectWithPhantom();
+      connectWithBackpack();
     }, 500);
   };
 
@@ -225,37 +225,37 @@ export default function Home() {
     }
   };
 
-  const connectWithPhantom = async () => {
+  const connectWithBackpack = async () => {
     try {
-      const publicKey = await connectWallet();
+      const publicKey = await connectBackpack();
       if (publicKey) {
         setWalletAddress(publicKey);
-        setConnectionMethod("phantom");
+        setConnectionMethod("backpack");
         setIsConnected(true);
         toast({
-          title: "Connected with Phantom",
-          description: "You are now connected using Phantom wallet.",
+          title: "Connected with Backpack",
+          description: "You are now connected using Backpack wallet.",
         });
       } else {
         toast({
           title: "Connection Failed",
-          description: "Failed to connect with Phantom wallet.",
+          description: "Failed to connect with Backpack wallet.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error("Error connecting with Phantom:", error);
+      console.error("Error connecting with Backpack:", error);
       toast({
         title: "Connection Error",
-        description: "An error occurred while connecting with Phantom.",
+        description: "An error occurred while connecting with Backpack.",
         variant: "destructive",
       });
     }
   };
 
   const handleDisconnect = async () => {
-    if (connectionMethod === "phantom") {
-      await disconnectWallet();
+    if (connectionMethod === "backpack") {
+      await disconnectBackpack();
     } else if (connectionMethod === "passkey") {
       await LazorKit.disconnect();
     }
