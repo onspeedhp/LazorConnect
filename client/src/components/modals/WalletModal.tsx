@@ -1,5 +1,6 @@
 import { FC, useEffect, useState } from 'react';
 import { getPhantomConnectUrl } from '@/lib/simplePhantomConnect';
+import { useBackpackWallet } from '@/lib/backpackWallet';
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -9,6 +10,8 @@ interface WalletModalProps {
 
 const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect }) => {
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [selectedWallet, setSelectedWallet] = useState<'phantom' | 'backpack'>('backpack');
+  const { connectWallet: connectBackpack } = useBackpackWallet();
   
   useEffect(() => {
     // Check if user is on mobile device
@@ -21,25 +24,31 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
   
   const handleMobileConnect = () => {
     try {
-      // Log for debugging
-      console.log('Attempting to open Phantom wallet using simple deep link');
-      
-      // Get the Phantom connect URL
-      const phantomUrl = getPhantomConnectUrl();
-      
-      // Show a prompt about what to expect
-      if (isMobile) {
-        console.log("Opening Phantom app:", phantomUrl);
+      if (selectedWallet === 'phantom') {
+        // Log for debugging
+        console.log('Attempting to open Phantom wallet using simple deep link');
+        
+        // Get the Phantom connect URL
+        const phantomUrl = getPhantomConnectUrl();
+        
+        // Show a prompt about what to expect
+        if (isMobile) {
+          console.log("Opening Phantom app:", phantomUrl);
+        }
+        
+        // Open the Phantom wallet
+        window.location.href = phantomUrl;
+      } else {
+        // Connect with Backpack
+        console.log('Attempting to connect with Backpack wallet');
+        connectBackpack();
       }
-      
-      // Open the Phantom wallet
-      window.location.href = phantomUrl;
       
       // Close the modal
       setTimeout(() => onClose(), 500);
     } catch (error) {
-      console.error('Error opening Phantom mobile app:', error);
-      alert('Error opening Phantom app: ' + (error instanceof Error ? error.message : String(error)));
+      console.error(`Error opening ${selectedWallet} wallet:`, error);
+      alert(`Error opening ${selectedWallet} wallet: ` + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -54,15 +63,50 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
         >
           <i className="fas fa-times"></i>
         </button>
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#AB9FF2] to-[#5348A3] mx-auto flex items-center justify-center mb-4">
-            <img src="https://phantom.app/apple-touch-icon.png" alt="Phantom Logo" className="w-10 h-10 rounded-full" />
+        
+        {/* Wallet Selection */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-gray-100 rounded-xl p-1 flex w-full">
+            <button
+              onClick={() => setSelectedWallet('backpack')}
+              className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-colors ${
+                selectedWallet === 'backpack' 
+                  ? 'bg-white shadow-sm' 
+                  : 'text-gray-600 hover:bg-white/50'
+              }`}
+            >
+              Backpack
+            </button>
+            <button
+              onClick={() => setSelectedWallet('phantom')}
+              className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-colors ${
+                selectedWallet === 'phantom' 
+                  ? 'bg-white shadow-sm' 
+                  : 'text-gray-600 hover:bg-white/50'
+              }`}
+            >
+              Phantom
+            </button>
           </div>
-          <h3 className="text-xl font-bold mb-2">Connect to Phantom</h3>
+        </div>
+        
+        <div className="text-center mb-6">
+          {selectedWallet === 'phantom' ? (
+            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#AB9FF2] to-[#5348A3] mx-auto flex items-center justify-center mb-4">
+              <img src="https://phantom.app/apple-touch-icon.png" alt="Phantom Logo" className="w-10 h-10 rounded-full" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-[#E93D44] to-[#B91C1C] mx-auto flex items-center justify-center mb-4">
+              <i className="fas fa-wallet text-white text-xl"></i>
+            </div>
+          )}
+          <h3 className="text-xl font-bold mb-2">
+            Connect to {selectedWallet === 'phantom' ? 'Phantom' : 'Backpack'}
+          </h3>
           <p className="text-sm text-[#474A57]">
             {isMobile 
-              ? "Open Phantom app on your mobile device" 
-              : "Open your Phantom wallet extension to connect"}
+              ? `Open ${selectedWallet} app on your mobile device` 
+              : `Open your ${selectedWallet} wallet extension to connect`}
           </p>
         </div>
         
@@ -71,10 +115,9 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
             <div className="flex items-start">
               <i className="fas fa-info-circle text-yellow-500 mt-0.5 mr-2"></i>
               <p className="text-sm text-[#474A57]">
-                For the best demo experience:<br/>
-                • "Continue with Demo" is recommended for testing<br/>
-                • Or click "Open Phantom App" if you have the app installed
-                <br/><strong>Note:</strong> Full connection may require additional setup
+                To connect with {selectedWallet} wallet:<br/>
+                • Ensure you have the {selectedWallet} app installed<br/>
+                • Approve the connection request in the app
               </p>
             </div>
           </div>
@@ -100,7 +143,7 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
                 <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
                   2
                 </div>
-                <span>Open Phantom extension</span>
+                <span>Open {selectedWallet} extension</span>
               </li>
               <li className="flex items-center">
                 <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
@@ -114,22 +157,16 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose, onSimulateConnect 
         
         <div className="flex justify-center">
           <div className="space-y-2 w-full">
-            {/* Always provide a simulation option for demo */}
             <button 
-              onClick={onSimulateConnect} 
-              className="w-full bg-gradient-to-r from-[#7857FF] to-[#6447CC] py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-[#7857FF]/30 transition-all duration-300"
+              onClick={handleMobileConnect} 
+              className={`w-full py-3 px-8 rounded-xl text-white font-medium hover:shadow-lg transition-all duration-300 ${
+                selectedWallet === 'phantom'
+                  ? 'bg-gradient-to-r from-[#7857FF] to-[#6447CC] hover:shadow-[#7857FF]/30'
+                  : 'bg-gradient-to-r from-[#E93D44] to-[#B91C1C] hover:shadow-[#E93D44]/30'
+              }`}
             >
-              {isMobile ? 'Continue with Demo (Recommended)' : 'Simulate Connection (Demo)'}
+              Open {selectedWallet === 'phantom' ? 'Phantom' : 'Backpack'} App
             </button>
-            
-            {isMobile && (
-              <button 
-                onClick={handleMobileConnect} 
-                className="w-full bg-gray-100 text-gray-700 py-3 px-8 rounded-xl font-medium hover:shadow-lg transition-all duration-300 mt-2"
-              >
-                Open Phantom App
-              </button>
-            )}
           </div>
         </div>
       </div>

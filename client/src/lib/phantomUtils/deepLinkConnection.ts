@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import '../buffer-polyfill';
 import { PublicKey, Connection, Transaction } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';

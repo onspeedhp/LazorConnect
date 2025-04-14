@@ -2,14 +2,17 @@
  * Simple Phantom Wallet connection using the Universal Link (ul) approach.
  * This uses the simpler deep linking method without encryption for better compatibility.
  */
+import './buffer-polyfill';
 
 // Create a URL for connecting to Phantom wallet
 export function getPhantomConnectUrl(): string {
-  const currentUrl = window.location.href;
+  // Make sure we use port 5000 in URLs
+  const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
+  const currentUrl = baseUrl + window.location.pathname + window.location.search;
   const redirectUrl = encodeURIComponent(currentUrl);
   
   // Use Phantom's universal link format with devnet cluster and proper redirect
-  const phantomUrl = `https://phantom.app/ul/v1/connect?app_url=${encodeURIComponent(window.location.origin)}&redirect_url=${redirectUrl}&cluster=devnet`;
+  const phantomUrl = `https://phantom.app/ul/v1/connect?app_url=${encodeURIComponent(baseUrl)}&redirect_url=${redirectUrl}&cluster=devnet`;
   
   console.log('Created Phantom connect URL:', phantomUrl);
   return phantomUrl;

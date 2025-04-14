@@ -6,6 +6,7 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import { PhantomDeepLink } from './phantomUtils/deepLinkConnection';
+import BackpackWallet from './backpackWallet';
 
 interface PhantomProvider {
   publicKey: PublicKey | null;
@@ -62,34 +63,67 @@ export const getPhantomDeepLink = (): string => {
   }
 };
 
+// Type for wallet selection
+export type WalletType = 'phantom' | 'backpack';
+
+// Current wallet used by the application
+let currentWallet: WalletType = 'backpack'; // Default to Backpack
+
+// Set which wallet to use
+export const setWalletType = (type: WalletType): void => {
+  currentWallet = type;
+  console.log(`Using ${type} wallet for connections`);
+};
+
+// Get current wallet type
+export const getWalletType = (): WalletType => {
+  return currentWallet;
+};
+
 export const connectWallet = async (): Promise<string | undefined> => {
   try {
     // Check if we're on mobile
     const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     if (isMobile) {
-      // On mobile, use the DeepLink approach to connect to Phantom
-      // The actual connection will be handled by the URL handler in the app
-      const phantomUrl = getPhantomDeepLink();
-      console.log("Opening Phantom URL for mobile:", phantomUrl);
-      
-      // For demo/testing, return a simulated address
-      // In production, this gets set later when the app handles the deep link response
-      return "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"; 
+      if (currentWallet === 'backpack') {
+        // Use Backpack wallet
+        console.log("Connecting with Backpack wallet");
+        const backpackInstance = BackpackWallet.getInstance();
+        backpackInstance.connect();
+        // The actual connection will be handled by the BackpackResponseHandler
+        return undefined;
+      } else {
+        // Use Phantom wallet
+        console.log("Connecting with Phantom wallet");
+        const phantomUrl = getPhantomDeepLink();
+        console.log("Opening Phantom URL for mobile:", phantomUrl);
+        window.location.href = phantomUrl;
+        // The actual connection will be handled by the PhantomResponseChecker
+        return undefined;
+      }
     }
     
-    // On desktop, use the extension
-    const provider = getProvider();
-    if (!provider) {
-      // If extension not found on desktop, suggest installation
-      window.open("https://phantom.app/download", "_blank");
-      return undefined;
+    // On desktop with Phantom
+    if (currentWallet === 'phantom') {
+      const provider = getProvider();
+      if (!provider) {
+        // If extension not found on desktop, suggest installation
+        window.open("https://phantom.app/download", "_blank");
+        return undefined;
+      }
+  
+      const { publicKey } = await provider.connect();
+      return publicKey.toString();
     }
-
-    const { publicKey } = await provider.connect();
-    return publicKey.toString();
+    
+    // On desktop with Backpack (still use deeplink approach for consistency)
+    console.log("Connecting with Backpack wallet (desktop)");
+    const backpackInstance = BackpackWallet.getInstance();
+    backpackInstance.connect();
+    return undefined;
   } catch (error) {
-    console.error("Error connecting to wallet:", error);
+    console.error(`Error connecting to ${currentWallet} wallet:`, error);
     return undefined;
   }
 };
@@ -99,8 +133,17 @@ export const disconnectWallet = async (): Promise<void> => {
     // Check if we're on mobile
     const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
+    if (currentWallet === 'backpack') {
+      // Use Backpack wallet for disconnection
+      console.log("Disconnecting Backpack wallet");
+      const backpackInstance = BackpackWallet.getInstance();
+      backpackInstance.disconnect();
+      return;
+    }
+    
+    // Phantom wallet disconnection
     if (isMobile) {
-      // On mobile, use the DeepLink approach
+      // On mobile, use the DeepLink approach for Phantom
       const phantomInstance = PhantomDeepLink.getInstance();
       const disconnectUrl = phantomInstance.disconnect();
       console.log("Opening Phantom disconnect URL:", disconnectUrl);
@@ -108,13 +151,13 @@ export const disconnectWallet = async (): Promise<void> => {
       return;
     }
     
-    // On desktop, use the extension
+    // On desktop, use the Phantom extension
     const provider = getProvider();
     if (provider) {
       await provider.disconnect();
     }
   } catch (error) {
-    console.error("Error disconnecting wallet:", error);
+    console.error(`Error disconnecting ${currentWallet} wallet:`, error);
   }
 };
 
@@ -159,51 +202,57 @@ export const sendTransaction = async (
   amount: number,
 ): Promise<string | undefined> => {
   try {
+    // Create a transaction
+    const sender = new PublicKey(senderPublicKey);
+    const recipient = new PublicKey(recipientPublicKey);
+    
+    // Create a transaction object
+    const transaction = new Transaction();
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: sender,
+        toPubkey: recipient,
+        lamports: amount * LAMPORTS_PER_SOL,
+      })
+    );
+    
+    // Get recent blockhash
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = sender;
+    
     // Check if we're on mobile
     const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
+    if (currentWallet === 'backpack') {
+      // Use Backpack wallet for transaction
+      console.log("Signing transaction with Backpack wallet");
+      const backpackInstance = BackpackWallet.getInstance();
+      backpackInstance.signAndSendTransaction(transaction);
+      // The actual result will be processed by the BackpackResponseHandler
+      return undefined;
+    }
+    
+    // Phantom wallet transaction handling
     if (isMobile) {
-      // Create a transaction
-      const sender = new PublicKey(senderPublicKey);
-      const recipient = new PublicKey(recipientPublicKey);
-      
-      // Create a transaction object
-      const transaction = new Transaction();
-      transaction.add(
-        SystemProgram.transfer({
-          fromPubkey: sender,
-          toPubkey: recipient,
-          lamports: amount * LAMPORTS_PER_SOL,
-        })
-      );
-      
-      // Use deep linking to send the transaction
+      // Use deep linking to send the transaction with Phantom
       const phantomInstance = PhantomDeepLink.getInstance();
       const transactionUrl = phantomInstance.signAndSendTransaction(transaction);
       console.log("Opening Phantom transaction URL:", transactionUrl);
       window.location.href = transactionUrl;
       
-      // For demo/testing, return a simulated signature
-      // In production, this gets set when the app handles the deep link response
-      return "simulated-signature-for-mobile";
+      // The actual signature will be handled by the PhantomDeepLinkHandler
+      return undefined;
     }
     
-    // On desktop, use the extension
+    // On desktop, use the Phantom extension
     const provider = getProvider();
     if (!provider) {
       throw new Error("Phantom wallet not connected or not installed");
     }
 
-    // Let's use a more direct approach with Phantom's provider
-    const sender = new PublicKey(senderPublicKey);
-    const recipient = new PublicKey(recipientPublicKey);
-
-    // Get a recent blockhash
-    const { blockhash, lastValidBlockHeight } =
-      await connection.getLatestBlockhash();
-
-    // Prepare transaction data
-    const transaction = {
+    // Prepare transaction data for Phantom desktop
+    const transactionMessage = {
       blockhash,
       lastValidBlockHeight,
       feePayer: sender,
@@ -218,11 +267,10 @@ export const sendTransaction = async (
 
     try {
       // Send the transaction using Phantom's sendTransaction method
-      // This handles all the internal Buffer handling
       const { signature } = await provider.request({
         method: "signAndSendTransaction",
         params: {
-          message: transaction
+          message: transactionMessage
         }
       });
 
@@ -231,7 +279,7 @@ export const sendTransaction = async (
         `Transaction sent: https://explorer.solana.com/tx/${signature}?cluster=devnet`,
       );
 
-      // Confirm the transaction - using a more compatible approach
+      // Confirm the transaction
       const latestBlockhash = await connection.getLatestBlockhash();
       const confirmation = await connection.confirmTransaction({
         blockhash: latestBlockhash.blockhash,
@@ -248,14 +296,14 @@ export const sendTransaction = async (
 
       return signature;
     } catch (error: any) {
-      // This catches errors in the signing process, like when a user rejects the transaction
+      // This catches errors in the signing process
       console.error("Error signing or sending transaction:", error);
       throw new Error(
         `Transaction signing failed: ${error.message || "Unknown error"}`,
       );
     }
   } catch (error) {
-    console.error("Error in transaction process:", error);
+    console.error(`Error in ${currentWallet} transaction process:`, error);
     throw error; // Rethrow to handle in the UI
   }
 };
