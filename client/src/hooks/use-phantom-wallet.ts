@@ -20,37 +20,6 @@ interface WalletState {
   publicKey: string;
 }
 
-// Add this logging utility at the top of the file
-const logToServer = async (
-  level: 'info' | 'error' | 'warn',
-  message: string,
-  data?: any
-) => {
-  try {
-    const logData = {
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-      data: data || {},
-      userAgent: navigator.userAgent,
-      // Add a unique identifier for the session
-      sessionId: localStorage.getItem('phantom_connection_id') || 'unknown',
-    };
-
-    // Send log to your backend server
-    await fetch('http://192.168.10.17:3000/api/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(logData),
-    });
-
-    // Still keep console logging for web debugging
-    console[level](message, data);
-  } catch (e) {
-    console.error('Failed to send log to server:', e);
-  }
-};
-
 /**
  * Custom hook for Phantom wallet connection state and functions
  */
@@ -65,179 +34,201 @@ export function usePhantomWallet() {
 
   // Generate encryption keypair for secure communication with Phantom
   const getOrCreateDappKeyPair = useCallback((): nacl.BoxKeyPair => {
-    if (!walletState.dappKeyPair) {
-      const newKeyPair = nacl.box.keyPair();
-      setWalletState((prev) => ({ ...prev, dappKeyPair: newKeyPair }));
-      return newKeyPair;
+    // First try to get from state
+    if (walletState.dappKeyPair) {
+      return walletState.dappKeyPair;
     }
-    return walletState.dappKeyPair;
+    
+    // Next, try to get from localStorage (for persistence across page loads)
+    try {
+      const storedKeyPair = localStorage.getItem('phantom_dapp_keypair');
+      if (storedKeyPair) {
+        const parsedKeyPair = JSON.parse(storedKeyPair);
+        // Convert the stored strings back to Uint8Array objects
+        const restoredKeyPair = {
+          publicKey: new Uint8Array(Object.values(parsedKeyPair.publicKey)),
+          secretKey: new Uint8Array(Object.values(parsedKeyPair.secretKey))
+        };
+        
+        console.log("Restored keypair from localStorage");
+        setWalletState((prev) => ({ ...prev, dappKeyPair: restoredKeyPair }));
+        return restoredKeyPair;
+      }
+    } catch (error) {
+      console.warn("Could not restore keypair from localStorage:", error);
+    }
+    
+    // If no keypair exists, create a new one
+    const newKeyPair = nacl.box.keyPair();
+    
+    // Store in state
+    setWalletState((prev) => ({ ...prev, dappKeyPair: newKeyPair }));
+    
+    // Also store in localStorage for persistence
+    try {
+      // Need to convert Uint8Array to regular objects for JSON serialization
+      const serializableKeyPair = {
+        publicKey: Array.from(newKeyPair.publicKey),
+        secretKey: Array.from(newKeyPair.secretKey)
+      };
+      localStorage.setItem('phantom_dapp_keypair', JSON.stringify(serializableKeyPair));
+      console.log("Stored new keypair in localStorage");
+    } catch (storageError) {
+      console.warn("Could not store keypair in localStorage:", storageError);
+    }
+    
+    return newKeyPair;
   }, [walletState.dappKeyPair]);
 
   // Encrypt payload for sending to Phantom
-  const encryptPayload = useCallback(
-    (payload: any): [Uint8Array, Uint8Array] => {
-      if (!walletState.sharedSecret) throw new Error('Missing shared secret');
+  const encryptPayload = useCallback((payload: any): [Uint8Array, Uint8Array] => {
+    if (!walletState.sharedSecret) throw new Error("Missing shared secret");
 
-      const nonce = nacl.randomBytes(24);
-      const encryptedPayload = nacl.box.after(
-        Buffer.from(JSON.stringify(payload)),
-        nonce,
-        walletState.sharedSecret
-      );
+    const nonce = nacl.randomBytes(24);
+    const encryptedPayload = nacl.box.after(
+      Buffer.from(JSON.stringify(payload)),
+      nonce,
+      walletState.sharedSecret
+    );
 
-      return [nonce, encryptedPayload];
-    },
-    [walletState.sharedSecret]
-  );
+    return [nonce, encryptedPayload];
+  }, [walletState.sharedSecret]);
 
   // Decrypt payload received from Phantom
-  const decryptPayload = useCallback(
-    (data: string, nonce: string): any => {
-      if (!walletState.sharedSecret) throw new Error('Missing shared secret');
+  const decryptPayload = useCallback((data: string, nonce: string): any => {
+    if (!walletState.sharedSecret) throw new Error("Missing shared secret");
 
-      const decryptedData = nacl.box.open.after(
-        bs58.decode(data),
-        bs58.decode(nonce),
-        walletState.sharedSecret
-      );
-
-      if (!decryptedData) {
-        throw new Error('Unable to decrypt data');
-      }
-
-      return JSON.parse(Buffer.from(decryptedData).toString('utf8'));
-    },
-    [walletState.sharedSecret]
-  );
+    const decryptedData = nacl.box.open.after(
+      bs58.decode(data),
+      bs58.decode(nonce),
+      walletState.sharedSecret
+    );
+    
+    if (!decryptedData) {
+      throw new Error("Unable to decrypt data");
+    }
+    
+    return JSON.parse(Buffer.from(decryptedData).toString("utf8"));
+  }, [walletState.sharedSecret]);
 
   /**
    * Process connection response from Phantom wallet
    * This implementation focuses on handling the callback URL and extracting
    * the user's wallet public key through the encrypted payload
    */
-  const processConnectionResponse = useCallback(
-    (url: string): { publicKey: string; session: string } | null => {
-      try {
-        logToServer(
-          'info',
-          'Processing Phantom wallet connection callback URL:',
-          url
-        );
+  const processConnectionResponse = useCallback((url: string): { publicKey: string; session: string } | null => {
+    try {
+      console.log("Processing Phantom wallet connection callback URL:", url);
+      
+      const urlObj = new URL(url);
+      const params = urlObj.searchParams;
+      
+      // Debug: Log all URL parameters to see what we received
+      console.log("Callback URL parameters:");
+      params.forEach((value, key) => {
+        console.log(`  ${key}: ${value.substring(0, 20)}${value.length > 20 ? '...' : ''}`);
+      });
 
-        const urlObj = new URL(url);
-        const params = urlObj.searchParams;
-
-        // Debug: Log all URL parameters
-        const paramObj: Record<string, string> = {};
-        params.forEach((value, key) => {
-          paramObj[key] =
-            value.substring(0, 20) + (value.length > 20 ? '...' : '');
-        });
-        logToServer('info', 'Callback URL parameters:', paramObj);
-
-        // Check for errors first
-        if (params.get('errorCode')) {
-          logToServer(
-            'error',
-            'Phantom connection error:',
-            params.get('errorMessage')
-          );
-          return null;
-        }
-
-        // Only use the standard encrypted flow for consistency
-        const phantomEncryptionPublicKey = params.get(
-          'phantom_encryption_public_key'
-        );
-        const data = params.get('data');
-        const nonce = params.get('nonce');
-
-        if (
-          phantomEncryptionPublicKey &&
-          data &&
-          nonce &&
-          walletState.dappKeyPair
-        ) {
-          logToServer('info', 'Processing encrypted connection data');
-
-          try {
-            // Create shared secret
-            const sharedSecretDapp = nacl.box.before(
-              bs58.decode(phantomEncryptionPublicKey),
-              walletState.dappKeyPair.secretKey
-            );
-
-            // Decrypt the connection data
-            const connectData = decryptWithSecret(
-              data,
-              nonce,
-              sharedSecretDapp
-            );
-
-            // Save connection state
-            setWalletState((prev) => ({
-              ...prev,
-              sharedSecret: sharedSecretDapp,
-              session: connectData.session,
-              publicKey: connectData.public_key,
-            }));
-
-            logToServer('info', 'Successfully decrypted connection data:', {
-              publicKey: connectData.public_key,
-            });
-
-            return {
-              publicKey: connectData.public_key,
-              session: connectData.session,
-            };
-          } catch (error) {
-            logToServer(
-              'error',
-              'Error processing encrypted connection data:',
-              error
-            );
-          }
-        } else {
-          logToServer(
-            'warn',
-            'Missing required encryption parameters for connection',
-            {
-              hasPhantomKey: !!phantomEncryptionPublicKey,
-              hasData: !!data,
-              hasNonce: !!nonce,
-              hasDappKeyPair: !!walletState.dappKeyPair,
-            }
-          );
-        }
-
-        // If we reach here, we couldn't find or decrypt the public key
-        logToServer('error', 'Could not process wallet connection response');
-        return null;
-      } catch (error) {
-        logToServer('error', 'Error processing connection response:', error);
+      // Check for errors first
+      if (params.get("errorCode")) {
+        console.error("Phantom connection error:", params.get("errorMessage"));
         return null;
       }
-    },
-    [walletState.dappKeyPair]
-  );
+
+      // Only use the standard encrypted flow for consistency
+      const phantomEncryptionPublicKey = params.get("phantom_encryption_public_key");
+      const data = params.get("data");
+      const nonce = params.get("nonce");
+      
+      // Get dappKeyPair - if not in state, try to get from localStorage
+      let keyPair = walletState.dappKeyPair;
+      if (!keyPair) {
+        console.log("No keyPair in state, trying to get from localStorage");
+        try {
+          const storedKeyPair = localStorage.getItem('phantom_dapp_keypair');
+          if (storedKeyPair) {
+            const parsedKeyPair = JSON.parse(storedKeyPair);
+            // Convert the stored strings back to Uint8Array objects
+            keyPair = {
+              publicKey: new Uint8Array(Object.values(parsedKeyPair.publicKey)),
+              secretKey: new Uint8Array(Object.values(parsedKeyPair.secretKey))
+            };
+            
+            // Update state with the keyPair
+            setWalletState(prev => ({ ...prev, dappKeyPair: keyPair }));
+            console.log("Restored keypair from localStorage for response processing");
+          } else {
+            console.error("No stored keypair found in localStorage");
+          }
+        } catch (error) {
+          console.error("Error restoring keypair from localStorage:", error);
+        }
+      }
+      
+      if (phantomEncryptionPublicKey && data && nonce && keyPair) {
+        console.log("Processing encrypted connection data");
+        
+        try {
+          // Create shared secret
+          const sharedSecretDapp = nacl.box.before(
+            bs58.decode(phantomEncryptionPublicKey),
+            keyPair.secretKey
+          );
+          
+          // Decrypt the connection data
+          const connectData = decryptWithSecret(data, nonce, sharedSecretDapp);
+          
+          // Save connection state
+          setWalletState(prev => ({
+            ...prev,
+            dappKeyPair: keyPair,
+            sharedSecret: sharedSecretDapp,
+            session: connectData.session,
+            publicKey: connectData.public_key
+          }));
+          
+          console.log("Successfully decrypted connection data:", connectData.public_key);
+          
+          return {
+            publicKey: connectData.public_key,
+            session: connectData.session
+          };
+        } catch (error) {
+          console.error("Error processing encrypted connection data:", error);
+        }
+      } else {
+        console.log("Missing required encryption parameters for connection");
+        console.log("Required: phantom_encryption_public_key, data, nonce, and dappKeyPair");
+        console.log("Available: ", {
+          hasPhantomKey: !!phantomEncryptionPublicKey,
+          hasData: !!data,
+          hasNonce: !!nonce,
+          hasDappKeyPair: !!keyPair
+        });
+      }
+      
+      // If we reach here, we couldn't find or decrypt the public key
+      console.error("Could not process wallet connection response");
+      return null;
+    } catch (error) {
+      console.error("Error processing connection response:", error);
+      return null;
+    }
+  }, [walletState.dappKeyPair]);
 
   // Helper function for one-time decryption without relying on state updates
-  const decryptWithSecret = (
-    data: string,
-    nonce: string,
-    secret: Uint8Array
-  ): any => {
+  const decryptWithSecret = (data: string, nonce: string, secret: Uint8Array): any => {
     const decryptedData = nacl.box.open.after(
       bs58.decode(data),
       bs58.decode(nonce),
       secret
     );
-
+    
     if (!decryptedData) {
-      throw new Error('Unable to decrypt data');
+      throw new Error("Unable to decrypt data");
     }
-
-    return JSON.parse(Buffer.from(decryptedData).toString('utf8'));
+    
+    return JSON.parse(Buffer.from(decryptedData).toString("utf8"));
   };
 
   // Connect to Phantom wallet via mobile deeplink
@@ -245,57 +236,49 @@ export function usePhantomWallet() {
     try {
       // Create encryption keypair if it doesn't exist
       const keyPair = getOrCreateDappKeyPair();
-
+      
       // Create a connection ID to help correlate the request and response
       const connectionId = Math.random().toString(36).substring(2, 15);
-
+      
       // Generate a redirect URL with additional parameters for better tracking
-      const redirectUrl = new URL(
-        `${window.location.origin}${window.location.pathname}`
-      );
-      redirectUrl.searchParams.append('action', 'phantom_connect');
-      redirectUrl.searchParams.append('connection_id', connectionId);
-      redirectUrl.searchParams.append('timestamp', Date.now().toString());
-
+      const redirectUrl = new URL(`${window.location.origin}${window.location.pathname}`);
+      redirectUrl.searchParams.append("action", "phantom_connect");
+      redirectUrl.searchParams.append("connection_id", connectionId);
+      redirectUrl.searchParams.append("timestamp", Date.now().toString());
+      
       // Prepare connection parameters
       const params = new URLSearchParams({
         dapp_encryption_public_key: bs58.encode(keyPair.publicKey),
-        cluster: 'devnet',
+        cluster: "devnet",
         app_url: window.location.origin,
-        redirect_link: redirectUrl.toString(),
+        redirect_link: redirectUrl.toString()
       });
-
+      
       // Add some additional parameters to make troubleshooting easier
-      params.append('app_name', 'Lazor vs Phantom Demo');
-      params.append('return_url', window.location.origin);
-
+      params.append("app_name", "Lazor vs Phantom Demo");
+      params.append("return_url", window.location.origin);
+      
       // Always use deep link for mobile
       const url = `phantom://v1/connect?${params.toString()}`;
-
+      
       // Log the URL for debugging
-      console.log('Redirecting to Phantom:', url);
-
+      console.log("Redirecting to Phantom:", url);
+      
       // Store connection ID in localStorage for verification
       try {
-        localStorage.setItem('phantom_connection_id', connectionId);
-        localStorage.setItem(
-          'phantom_connection_timestamp',
-          Date.now().toString()
-        );
+        localStorage.setItem("phantom_connection_id", connectionId);
+        localStorage.setItem("phantom_connection_timestamp", Date.now().toString());
       } catch (storageError) {
-        console.warn(
-          'Could not store connection data in localStorage:',
-          storageError
-        );
+        console.warn("Could not store connection data in localStorage:", storageError);
       }
-
+      
       // Redirect to Phantom
       window.location.href = url;
-
-      return '';
+      
+      return "";
     } catch (error) {
-      console.error('Error connecting to Phantom:', error);
-      return '';
+      console.error("Error connecting to Phantom:", error);
+      return "";
     }
   }, [getOrCreateDappKeyPair]);
 
@@ -303,9 +286,7 @@ export function usePhantomWallet() {
   const checkForWalletResponse = useCallback((): boolean => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
-      return (
-        urlParams.has('action') && urlParams.get('action') === 'phantom_connect'
-      );
+      return urlParams.has('action') && urlParams.get('action') === 'phantom_connect';
     }
     return false;
   }, []);
@@ -314,159 +295,152 @@ export function usePhantomWallet() {
   const disconnectPhantom = useCallback((): void => {
     try {
       // For a proper encrypted session
-      if (
-        walletState.session &&
-        walletState.sharedSecret &&
-        walletState.dappKeyPair
-      ) {
+      if (walletState.session && walletState.sharedSecret && walletState.dappKeyPair) {
         // Create payload for disconnect
         const payload = { session: walletState.session };
-
+        
         try {
           const [nonce, encryptedPayload] = encryptPayload(payload);
 
           // Prepare disconnect parameters for encrypted session
           const params = new URLSearchParams({
-            dapp_encryption_public_key: bs58.encode(
-              walletState.dappKeyPair.publicKey
-            ),
+            dapp_encryption_public_key: bs58.encode(walletState.dappKeyPair.publicKey),
             nonce: bs58.encode(nonce),
             redirect_link: `${window.location.origin}${window.location.pathname}?action=phantom_disconnect`,
-            payload: bs58.encode(encryptedPayload),
+            payload: bs58.encode(encryptedPayload)
           });
 
           // Always use deep link for mobile
           const url = `phantom://v1/disconnect?${params.toString()}`;
-
+          
           // Log the URL for debugging
-          console.log('Disconnecting from Phantom:', url);
-
+          console.log("Disconnecting from Phantom:", url);
+          
           // Redirect to Phantom
           window.location.href = url;
         } catch (encryptError) {
-          console.error('Error encrypting disconnect payload:', encryptError);
+          console.error("Error encrypting disconnect payload:", encryptError);
         }
       } else if (walletState.publicKey) {
         // For direct connection (no encryption)
-        console.log(
-          'Disconnecting direct connection for',
-          walletState.publicKey
-        );
+        console.log("Disconnecting direct connection for", walletState.publicKey);
       } else {
-        console.log('Not connected to Phantom');
+        console.log("Not connected to Phantom");
       }
-
+      
       // Always clear connection state
       setWalletState({
         dappKeyPair: null,
         sharedSecret: null,
         session: '',
-        publicKey: '',
+        publicKey: ''
       });
+      
+      // Clear localStorage data
+      try {
+        localStorage.removeItem('phantom_dapp_keypair');
+        localStorage.removeItem('phantom_connection_id');
+        localStorage.removeItem('phantom_connection_timestamp');
+        console.log("Cleared connection data from localStorage");
+      } catch (e) {
+        console.warn("Could not clear data from localStorage:", e);
+      }
     } catch (error) {
-      console.error('Error disconnecting from Phantom:', error);
-
+      console.error("Error disconnecting from Phantom:", error);
+      
       // Still clear connection state even if there was an error
       setWalletState({
         dappKeyPair: null,
         sharedSecret: null,
         session: '',
-        publicKey: '',
+        publicKey: ''
       });
+      
+      // Clear localStorage data
+      try {
+        localStorage.removeItem('phantom_dapp_keypair');
+        localStorage.removeItem('phantom_connection_id');
+        localStorage.removeItem('phantom_connection_timestamp');
+        console.log("Cleared connection data from localStorage");
+      } catch (e) {
+        console.warn("Could not clear data from localStorage:", e);
+      }
     }
   }, [walletState, encryptPayload]);
 
   // Get wallet balance
-  const getWalletBalance = useCallback(
-    async (publicKey: string): Promise<number> => {
-      try {
-        const pk = new PublicKey(publicKey);
-        const balance = await connection.getBalance(pk);
-        return balance / LAMPORTS_PER_SOL; // Convert lamports to SOL
-      } catch (error) {
-        console.error('Error getting wallet balance:', error);
-        return 0;
-      }
-    },
-    []
-  );
+  const getWalletBalance = useCallback(async (publicKey: string): Promise<number> => {
+    try {
+      const pk = new PublicKey(publicKey);
+      const balance = await connection.getBalance(pk);
+      return balance / LAMPORTS_PER_SOL; // Convert lamports to SOL
+    } catch (error) {
+      console.error("Error getting wallet balance:", error);
+      return 0;
+    }
+  }, []);
 
   // Request an airdrop
-  const requestAirdrop = useCallback(
-    async (publicKey: string, amount: number = 1): Promise<string | null> => {
-      try {
-        const pk = new PublicKey(publicKey);
-        const signature = await connection.requestAirdrop(
-          pk,
-          amount * LAMPORTS_PER_SOL // Convert SOL to lamports
-        );
-
-        await connection.confirmTransaction(signature);
-        return signature;
-      } catch (error) {
-        console.error('Error requesting airdrop:', error);
-        return null;
-      }
-    },
-    []
-  );
+  const requestAirdrop = useCallback(async (publicKey: string, amount: number = 1): Promise<string | null> => {
+    try {
+      const pk = new PublicKey(publicKey);
+      const signature = await connection.requestAirdrop(
+        pk,
+        amount * LAMPORTS_PER_SOL // Convert SOL to lamports
+      );
+      
+      await connection.confirmTransaction(signature);
+      return signature;
+    } catch (error) {
+      console.error("Error requesting airdrop:", error);
+      return null;
+    }
+  }, []);
 
   // Send a transaction
-  const sendTransaction = useCallback(
-    (
-      senderPublicKey: string,
-      recipientPublicKey: string,
-      amount: number
-    ): void => {
-      if (!walletState.session && walletState.publicKey === '') {
-        console.error('Not connected to Phantom');
-        return;
+  const sendTransaction = useCallback((senderPublicKey: string, recipientPublicKey: string, amount: number): void => {
+    if (!walletState.session && walletState.publicKey === "") {
+      console.error("Not connected to Phantom");
+      return;
+    }
+
+    try {
+      // For a real transaction, we would:
+      // 1. Create and serialize a Solana transaction
+      // 2. Encrypt the payload
+      // 3. Prepare the deeplink params
+      
+      // For this demo, we'll use a simplified approach
+      const redirectUrl = `${window.location.origin}${window.location.pathname}?action=phantom_transaction`;
+      
+      // Simplified parameters that would typically include the encrypted transaction
+      const params = new URLSearchParams({
+        redirect_link: redirectUrl
+      });
+      
+      // Add encryption key if available
+      if (walletState.dappKeyPair) {
+        params.append("dapp_encryption_public_key", bs58.encode(walletState.dappKeyPair.publicKey));
       }
-
-      try {
-        // For a real transaction, we would:
-        // 1. Create and serialize a Solana transaction
-        // 2. Encrypt the payload
-        // 3. Prepare the deeplink params
-
-        // For this demo, we'll use a simplified approach
-        const redirectUrl = `${window.location.origin}${window.location.pathname}?action=phantom_transaction`;
-
-        // Simplified parameters that would typically include the encrypted transaction
-        const params = new URLSearchParams({
-          redirect_link: redirectUrl,
-        });
-
-        // Add encryption key if available
-        if (walletState.dappKeyPair) {
-          params.append(
-            'dapp_encryption_public_key',
-            bs58.encode(walletState.dappKeyPair.publicKey)
-          );
-        }
-
-        // Add transaction details for demo (in a real app, this would be part of the encrypted payload)
-        params.append('sender', senderPublicKey);
-        params.append('receiver', recipientPublicKey);
-        params.append('amount', amount.toString());
-
-        // Always use deep link for mobile
-        const url = `phantom://v1/signTransaction?${params.toString()}`;
-
-        // Log transaction details
-        console.log(
-          `Sending ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`
-        );
-        console.log('Redirecting to Phantom:', url);
-
-        // Redirect to Phantom
-        window.location.href = url;
-      } catch (error) {
-        console.error('Error sending transaction:', error);
-      }
-    },
-    [walletState]
-  );
+      
+      // Add transaction details for demo (in a real app, this would be part of the encrypted payload)
+      params.append("sender", senderPublicKey);
+      params.append("receiver", recipientPublicKey);
+      params.append("amount", amount.toString());
+      
+      // Always use deep link for mobile
+      const url = `phantom://v1/signTransaction?${params.toString()}`;
+      
+      // Log transaction details
+      console.log(`Sending ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`);
+      console.log("Redirecting to Phantom:", url);
+      
+      // Redirect to Phantom
+      window.location.href = url;
+    } catch (error) {
+      console.error("Error sending transaction:", error);
+    }
+  }, [walletState]);
 
   // Return all wallet methods and state
   return {
@@ -477,6 +451,6 @@ export function usePhantomWallet() {
     disconnectPhantom,
     getWalletBalance,
     requestAirdrop,
-    sendTransaction,
+    sendTransaction
   };
 }
