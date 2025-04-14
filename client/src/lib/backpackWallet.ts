@@ -63,15 +63,22 @@ class BackpackWallet {
     // Get baseUrl with correct port
     const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
     
+    // URL encode the redirect link as per Backpack's specification
+    const redirectUrl = baseUrl + '/?backpack=connect';
+    const encodedRedirectUrl = encodeURIComponent(redirectUrl);
+    
     // Create connection URL parameters
     const params = new URLSearchParams({
       dapp_encryption_public_key: arrayToBase64(this.dappKeyPair.publicKey),
       cluster: 'devnet',
-      redirect_link: baseUrl + '/?backpack=connect',
+      redirect_link: encodedRedirectUrl,
+      app_url: baseUrl, // Optional: Add app_url for Backpack to display app info
     });
     
     // Form the URL
     const url = `https://backpack.app/connect?${params.toString()}`;
+    
+    console.log('Connecting to Backpack with URL:', url);
     
     // Open the URL
     window.location.href = url;
@@ -84,47 +91,70 @@ class BackpackWallet {
    */
   public handleConnectResponse(url: URL): string | null {
     try {
+      console.log('Handling Backpack connect response, URL params:', 
+        Object.fromEntries(url.searchParams.entries()));
+      
       // Extract response parameters
-      const encrypted_key = url.searchParams.get('encrypted_key');
-      this.session = url.searchParams.get('session');
-      const wallet_public_key = url.searchParams.get('wallet_public_key');
+      const data = url.searchParams.get('data');
+      const wallet_encryption_public_key = url.searchParams.get('wallet_encryption_public_key');
       const nonce = url.searchParams.get('nonce');
+      this.session = url.searchParams.get('session');
       
-      // Validate required parameters
-      if (!encrypted_key || !this.session || !wallet_public_key || !nonce) {
-        console.error('Missing required parameters in Backpack connect response');
-        return null;
+      // There are two ways Backpack might return the public key:
+      // 1. Direct wallet_public_key parameter (older versions)
+      // 2. Encrypted in the data parameter (newer versions)
+      
+      // Check for direct public key first
+      const direct_wallet_public_key = url.searchParams.get('wallet_public_key');
+      if (direct_wallet_public_key && this.session) {
+        console.log('Using direct public key from Backpack response');
+        this.walletPublicKey = new PublicKey(direct_wallet_public_key);
+        return direct_wallet_public_key;
       }
       
-      // Decode parameters
-      const walletPublicKeyBytes = base64ToArray(wallet_public_key);
-      const nonceBytes = base64ToArray(nonce);
-      const encryptedKeyBytes = base64ToArray(encrypted_key);
-      
-      // Create shared secret
-      const walletEncryptionPublicKey = walletPublicKeyBytes.slice(0, 32);
-      const sharedSecret = nacl.box.before(
-        walletEncryptionPublicKey,
-        this.dappKeyPair.secretKey
-      );
-      
-      // Decrypt the secret key
-      const decrypted = this.decryptPayload(
-        encryptedKeyBytes,
-        nonceBytes,
-        sharedSecret
-      );
-      
-      if (!decrypted) {
-        console.error('Failed to decrypt Backpack connect response');
-        return null;
+      // If we have encrypted data, decrypt it
+      if (data && wallet_encryption_public_key && nonce && this.session) {
+        console.log('Decrypting public key from Backpack response');
+        
+        try {
+          // Decode parameters
+          const walletEncPubKeyBytes = base64ToArray(wallet_encryption_public_key);
+          const nonceBytes = base64ToArray(nonce);
+          const encryptedDataBytes = base64ToArray(data);
+          
+          // Create shared secret from wallet's public key and our private key
+          const sharedSecret = nacl.box.before(
+            walletEncPubKeyBytes,
+            this.dappKeyPair.secretKey
+          );
+          
+          // Decrypt the data
+          const decrypted = this.decryptPayload(
+            encryptedDataBytes,
+            nonceBytes,
+            sharedSecret
+          );
+          
+          if (decrypted) {
+            // Parse the decrypted JSON
+            const decoder = new TextDecoder();
+            const jsonStr = decoder.decode(decrypted);
+            console.log('Decrypted data JSON:', jsonStr);
+            const parsedData = JSON.parse(jsonStr);
+            
+            // Extract the public key from the decrypted data
+            if (parsedData && parsedData.public_key) {
+              this.walletPublicKey = new PublicKey(parsedData.public_key);
+              return parsedData.public_key;
+            }
+          }
+        } catch (decryptError) {
+          console.error('Error decrypting Backpack connect response:', decryptError);
+        }
       }
       
-      // Set the wallet public key
-      this.walletPublicKey = new PublicKey(wallet_public_key);
-      
-      // Return the wallet public key string
-      return wallet_public_key;
+      console.error('Missing or invalid parameters in Backpack connect response');
+      return null;
     } catch (error) {
       console.error('Error handling Backpack connect response:', error);
       return null;
@@ -163,15 +193,22 @@ class BackpackWallet {
       // Get baseUrl with correct port
       const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
       
+      // URL encode the redirect link as per Backpack's specification
+      const redirectUrl = baseUrl + '/?backpack=transaction';
+      const encodedRedirectUrl = encodeURIComponent(redirectUrl);
+      
       // Create connection URL parameters
       const params = new URLSearchParams({
         session: this.session,
+        dapp_encryption_public_key: arrayToBase64(this.dappKeyPair.publicKey),
         transaction: arrayToBase64(serializedTransaction),
-        redirect_link: baseUrl + '/?backpack=transaction',
+        redirect_link: encodedRedirectUrl,
       });
       
       // Form the URL
       const url = `https://backpack.app/sign_transaction?${params.toString()}`;
+      
+      console.log('Sending transaction to Backpack with URL:', url);
       
       // Open the URL
       window.location.href = url;
@@ -188,15 +225,56 @@ class BackpackWallet {
    */
   public handleTransactionResponse(url: URL): string | null {
     try {
-      // Extract the signature
+      // Extract response parameters - it could be either direct signature or encrypted data
       const signature = url.searchParams.get('signature');
+      const data = url.searchParams.get('data');
+      const nonce = url.searchParams.get('nonce');
+      const wallet_encryption_public_key = url.searchParams.get('wallet_encryption_public_key');
       
-      if (!signature) {
-        console.error('Missing signature in Backpack transaction response');
-        return null;
+      // If we have a direct signature, use it
+      if (signature) {
+        return signature;
       }
       
-      return signature;
+      // If we have encrypted data
+      if (data && nonce && wallet_encryption_public_key) {
+        try {
+          // Decode parameters
+          const walletPublicKeyBytes = base64ToArray(wallet_encryption_public_key);
+          const nonceBytes = base64ToArray(nonce);
+          const encryptedDataBytes = base64ToArray(data);
+          
+          // Create shared secret
+          const sharedSecret = nacl.box.before(
+            walletPublicKeyBytes,
+            this.dappKeyPair.secretKey
+          );
+          
+          // Decrypt the data
+          const decrypted = this.decryptPayload(
+            encryptedDataBytes,
+            nonceBytes,
+            sharedSecret
+          );
+          
+          if (decrypted) {
+            // Parse the decrypted JSON
+            const decoder = new TextDecoder();
+            const jsonStr = decoder.decode(decrypted);
+            const parsedData = JSON.parse(jsonStr);
+            
+            // Check if signature is in the decrypted data
+            if (parsedData && parsedData.signature) {
+              return parsedData.signature;
+            }
+          }
+        } catch (decryptError) {
+          console.error('Error decrypting transaction response:', decryptError);
+        }
+      }
+      
+      console.error('Missing or invalid signature in Backpack transaction response');
+      return null;
     } catch (error) {
       console.error('Error handling Backpack transaction response:', error);
       return null;
