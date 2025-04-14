@@ -105,7 +105,7 @@ export default function Home() {
       if (isConnected && walletAddress) {
         try {
           let currentBalance = 0;
-          if (connectionMethod === "phantom") {
+          if (connectionMethod === "phantom" || connectionMethod === "backpack") {
             currentBalance = await getWalletBalance(walletAddress);
           } else if (connectionMethod === "passkey") {
             currentBalance = await LazorKit.getBalance();
@@ -131,7 +131,7 @@ export default function Home() {
 
     try {
       let signature = null;
-      if (connectionMethod === "phantom") {
+      if (connectionMethod === "phantom" || connectionMethod === "backpack") {
         signature = await requestAirdrop(walletAddress, 1);
       } else if (connectionMethod === "passkey") {
         signature = await LazorKit.requestAirdrop(1);
@@ -139,7 +139,7 @@ export default function Home() {
 
       if (signature) {
         // Update balance after successful airdrop
-        if (connectionMethod === "phantom") {
+        if (connectionMethod === "phantom" || connectionMethod === "backpack") {
           const newBalance = await getWalletBalance(walletAddress);
           setBalance(newBalance);
         } else {
@@ -265,7 +265,7 @@ export default function Home() {
   };
 
   const handleDisconnect = async () => {
-    if (connectionMethod === "phantom") {
+    if (connectionMethod === "phantom" || connectionMethod === "backpack") {
       await disconnectWallet();
     } else if (connectionMethod === "passkey") {
       await LazorKit.disconnect();
@@ -285,7 +285,7 @@ export default function Home() {
       setBiometricAction("transaction");
       setShowBiometricPrompt(true);
     } else {
-      // For Phantom, show the transaction modal directly
+      // For wallet connections, show the transaction modal directly
       setTransactionStatus("processing");
       setShowTransactionModal(true);
 
@@ -294,7 +294,7 @@ export default function Home() {
         const recipientAddress = "DzGkwSr6HWt94DzSpKPvxnFWKX4xZG7r2aSwYk9iQEM6";
         const transactionAmount = 0.001;
 
-        // Attempt to send the transaction through Phantom wallet
+        // Attempt to send the transaction through wallet
         const signature = await sendTransaction(
           walletAddress,
           recipientAddress,
@@ -307,7 +307,7 @@ export default function Home() {
             title: "Transaction Successful",
             description: "The SOL has been successfully sent!",
           });
-          addTransaction(transactionAmount, true, "phantom");
+          addTransaction(transactionAmount, true, connectionMethod as "phantom" | "backpack");
 
           // Update balance after successful transaction
           const newBalance = await getWalletBalance(walletAddress);
@@ -323,7 +323,7 @@ export default function Home() {
           description: error.message || "Failed to send transaction",
           variant: "destructive",
         });
-        addTransaction(0.001, false, "phantom");
+        addTransaction(0.001, false, connectionMethod as "phantom" | "backpack");
       }
     }
   };
@@ -358,7 +358,7 @@ export default function Home() {
   const addTransaction = (
     amount: number,
     success: boolean,
-    method: "passkey" | "phantom",
+    method: "passkey" | "phantom" | "backpack",
   ) => {
     const newTransaction: ClientTransaction = {
       id: `tx_${Date.now()}`,

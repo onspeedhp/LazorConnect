@@ -161,10 +161,16 @@ const Dashboard: FC<DashboardProps> = ({
                   <span className="font-medium">Send {tx.amount} SOL</span>
                 </div>
                 <div className="flex items-center">
-                  <div className={`w-4 h-4 rounded-full ${tx.connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 'bg-[#7857FF]'} flex items-center justify-center mr-1`}>
+                  <div className={`w-4 h-4 rounded-full ${
+                    tx.connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 
+                    tx.connectionMethod === 'phantom' ? 'bg-[#7857FF]' : 'bg-[#E93D44]'
+                  } flex items-center justify-center mr-1`}>
                     <i className={`fas ${tx.connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'} text-white text-xs`}></i>
                   </div>
-                  <span className="text-xs text-[#9FA3B5]">Via {tx.connectionMethod}</span>
+                  <span className="text-xs text-[#9FA3B5]">Via {
+                    tx.connectionMethod === 'passkey' ? 'Passkey' : 
+                    tx.connectionMethod === 'phantom' ? 'Phantom' : 'Backpack'
+                  }</span>
                 </div>
               </div>
               <div className="text-right">

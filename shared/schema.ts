@@ -17,7 +17,7 @@ export const transactions = pgTable("transactions", {
   amount: text("amount").notNull(),
   success: boolean("success").notNull().default(true),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-  connectionMethod: text("connection_method").notNull(), // "passkey" or "phantom"
+  connectionMethod: text("connection_method").notNull(), // "passkey", "phantom" or "backpack"
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -46,5 +46,5 @@ export interface ClientTransaction {
   amount: number;
   success: boolean;
   timestamp: Date;
-  connectionMethod: 'passkey' | 'phantom';
+  connectionMethod: 'passkey' | 'phantom' | 'backpack';
 }
