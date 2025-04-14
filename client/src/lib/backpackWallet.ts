@@ -58,8 +58,7 @@ class BackpackWallet {
     // Create a new key pair for this session
     this.dappKeyPair = nacl.box.keyPair();
     
-    // Detect device platform for platform-specific handling
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // Use the class property for iOS detection
     
     // Get baseUrl with correct port
     const baseUrl = window.location.origin.replace(/:3000\b/, ':5000');
@@ -87,9 +86,9 @@ class BackpackWallet {
     
     console.log('Connecting to Backpack with URL:', url);
     
-    // Now use the previously detected iOS flag
+    // Use the class isIOS property
     
-    if (isIOS) {
+    if (this.isIOS) {
       // On iOS, we use the universal link fallback mechanism that will return to Safari
       // iOS needs this special handling to return to Safari after the wallet operation
       window.location.href = `https://backpack.app/return?address_=_skip_&redirect_link=${encodeURIComponent(url)}`;
@@ -266,9 +265,9 @@ class BackpackWallet {
       
       console.log('Sending transaction to Backpack with URL:', url);
       
-      // Check for iOS platform for special handling
+      // Use the class isIOS property for special handling
       
-      if (isIOS) {
+      if (this.isIOS) {
         // On iOS, we use the universal link fallback mechanism that will return to Safari
         // iOS needs this special handling to return to Safari after the wallet operation
         window.location.href = `https://backpack.app/return?address_=_skip_&redirect_link=${encodeURIComponent(url)}`;
