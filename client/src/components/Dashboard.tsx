@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import PerformanceMetrics from '@/components/PerformanceMetrics';
 
 interface DashboardProps {
-  connectionMethod: 'passkey' | 'backpack';
+  connectionMethod: 'passkey' | 'phantom';
   walletAddress: string;
   onDisconnect: () => void;
   onSendTransaction: () => void;
@@ -49,7 +49,7 @@ const Dashboard: FC<DashboardProps> = ({
       "No extensions required",
       "Works on any device including mobile"
     ],
-    backpack: [
+    phantom: [
       "Popular Solana wallet with excellent mobile support",
       "Multi-chain support with user-friendly interface",
       "Built with deep mobile integration using deeplinks",
@@ -230,7 +230,7 @@ const Dashboard: FC<DashboardProps> = ({
           </ul>
         </div>
         
-        {/* Backpack Column */}
+        {/* Phantom Column */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-[#7857FF]">
           <div className="flex items-center mb-3">
             <div className="w-8 h-8 rounded-full bg-[#7857FF] flex items-center justify-center mr-2 text-white">
@@ -240,7 +240,7 @@ const Dashboard: FC<DashboardProps> = ({
           </div>
           
           <ul className="space-y-2">
-            {connectionBenefits.backpack.map((benefit: string, index: number) => (
+            {connectionBenefits.phantom.map((benefit: string, index: number) => (
               <li key={index} className="flex items-start">
                 <span className="text-[#7857FF] mr-2"><i className="fas fa-info-circle"></i></span>
                 <span className="text-sm">{benefit}</span>
