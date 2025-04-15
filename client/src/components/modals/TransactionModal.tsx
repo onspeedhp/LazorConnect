@@ -6,7 +6,7 @@ interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   status: TransactionStatus;
-  connectionMethod: 'passkey' | 'backpack';
+  connectionMethod: 'passkey' | 'phantom';
   amount: number;
 }
 
@@ -94,7 +94,7 @@ const TransactionModal: FC<TransactionModalProps> = ({
           </div>
           <div className="flex justify-between pt-2 border-t border-gray-100">
             <span className="text-sm text-[#9FA3B5]">Method</span>
-            <span className="text-sm font-medium">{connectionMethod === 'passkey' ? 'Passkey' : 'Backpack'}</span>
+            <span className="text-sm font-medium">{connectionMethod === 'passkey' ? 'Passkey' : 'Phantom'}</span>
           </div>
         </div>
         <div className="flex justify-center">

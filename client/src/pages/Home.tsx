@@ -362,7 +362,7 @@ export default function Home() {
         } else if (action === 'backpack_connect') {
           publicKey = processBackpackResponse(window.location.href);
           if (publicKey) {
-            walletType = "backpack";
+            walletType = "phantom"; // Using phantom for Backpack compatibility
             console.log("Successfully processed Backpack connection:", publicKey);
           }
         }
@@ -653,7 +653,7 @@ export default function Home() {
 
       if (signature) {
         // Update balance after successful airdrop
-        if (connectionMethod === "backpack") {
+        if (connectionMethod === "phantom") {
           const newBalance = await getPhantomBalance(walletAddress);
           setBalance(newBalance);
         } else {
@@ -754,14 +754,9 @@ export default function Home() {
 
   const handleDisconnect = async () => {
     try {
-      if (connectionMethod === "backpack") {
-        // If connected with Phantom
-        if (walletAddress.startsWith('P')) {
-          await disconnectPhantom();
-        } else {
-          // If connected with Backpack
-          await disconnectBackpack();
-        }
+      if (connectionMethod === "phantom") {
+        // Disconnect from Phantom wallet
+        await disconnectPhantom();
       } else if (connectionMethod === "passkey") {
         await LazorKit.disconnect();
       }
@@ -836,7 +831,7 @@ export default function Home() {
             }
           }
           console.log(`Auto-completed transaction duration: ${duration}ms`);
-          addTransaction(transactionAmount, true, "passkey", duration);
+          addTransaction(transactionAmount, true, "phantom", duration);
           
           // Also show a toast notification
           toast({
