@@ -6,11 +6,9 @@ import PasskeyModal from "@/components/modals/PasskeyModal";
 import WalletModal from "@/components/modals/WalletModal";
 import TransactionModal from "@/components/modals/TransactionModal";
 import BiometricPrompt from "@/components/modals/BiometricPrompt";
-import PerformanceMetrics from "@/components/PerformanceMetrics";
 import { ClientTransaction } from "@shared/schema";
 import LazorKit from "@/lib/lazorKit";
 import { usePhantomWallet } from "@/hooks/use-phantom-wallet";
-import { useBackpackWallet } from "@/hooks/use-backpack-wallet";
 import { useToast } from "@/hooks/use-toast";
 
 type ConnectionMethod = "passkey" | "phantom" | null;
@@ -71,16 +69,7 @@ export default function Home() {
     checkForWalletResponse: checkForPhantomResponse 
   } = usePhantomWallet();
   
-  // Use Backpack wallet hook
-  const {
-    connectBackpack,
-    processConnectionResponse: processBackpackResponse,
-    disconnectBackpack,
-    getWalletBalance: getBackpackBalance,
-    requestAirdrop: requestBackpackAirdrop,
-    sendTransaction: sendBackpackTransaction,
-    checkForWalletResponse: checkForBackpackResponse
-  } = useBackpackWallet();
+  // Backpack wallet functionality has been removed
   
   const { toast } = useToast();
 
@@ -313,10 +302,11 @@ export default function Home() {
     const hasPendingTransaction = localStorage.getItem("phantom_transaction_pending") === "true";
     
     // Handle wallet connection callbacks
-    if (action && (action === 'phantom_connect' || action === 'backpack_connect')) {
+    // Handle wallet connection callbacks - Phantom only
+    if (action && action === 'phantom_connect') {
       try {
         // Enhanced logging for debugging
-        console.log(`${action === 'phantom_connect' ? 'Phantom' : 'Backpack'} connection callback received`);
+        console.log("Phantom connection callback received");
         console.log("Full URL:", window.location.href);
         console.log("URL parameters:");
         urlParams.forEach((value, key) => {
@@ -331,10 +321,8 @@ export default function Home() {
         const connectionId = urlParams.get('connection_id');
         if (connectionId) {
           try {
-            const idStorageKey = action === 'phantom_connect' ? "phantom_connection_id" : "backpack_connection_id";
-            const timestampKey = action === 'phantom_connect' ? "phantom_connection_timestamp" : "backpack_connection_timestamp";
-            const storedConnectionId = localStorage.getItem(idStorageKey);
-            const timestamp = localStorage.getItem(timestampKey);
+            const storedConnectionId = localStorage.getItem("phantom_connection_id");
+            const timestamp = localStorage.getItem("phantom_connection_timestamp");
             console.log("Connection tracking:", {
               received: connectionId,
               stored: storedConnectionId,
@@ -347,41 +335,31 @@ export default function Home() {
         
         // Process connection response from the URL
         let publicKey: string | null = null;
-        let walletType: "phantom" | null = null;
         
-        if (action === 'phantom_connect') {
-          const response = processPhantomResponse(window.location.href);
-          if (response && response.publicKey) {
-            publicKey = response.publicKey;
-            walletType = "phantom"; // Use phantom as the connection method
-            console.log("Successfully processed Phantom connection:", {
-              publicKey: response.publicKey,
-              session: response.session
-            });
-          }
-        } else if (action === 'backpack_connect') {
-          publicKey = processBackpackResponse(window.location.href);
-          if (publicKey) {
-            walletType = "phantom"; // Using phantom for Backpack compatibility
-            console.log("Successfully processed Backpack connection:", publicKey);
-          }
+        const response = processPhantomResponse(window.location.href);
+        if (response && response.publicKey) {
+          publicKey = response.publicKey;
+          console.log("Successfully processed Phantom connection:", {
+            publicKey: response.publicKey,
+            session: response.session
+          });
         }
         
-        if (publicKey && walletType) {
+        if (publicKey) {
           toast({
             title: "Wallet Connected",
-            description: `Successfully connected with ${action === 'phantom_connect' ? 'Phantom' : 'Backpack'} wallet!`,
+            description: "Successfully connected with Phantom wallet!",
           });
           
           setWalletAddress(publicKey);
-          setConnectionMethod(walletType);
+          setConnectionMethod("phantom");
           setIsConnected(true);
         } else {
           // If we couldn't get the public key, show an error
-          throw new Error(`Could not process ${action === 'phantom_connect' ? 'Phantom' : 'Backpack'} connection. URL: ${window.location.href}`);
+          throw new Error(`Could not process Phantom connection. URL: ${window.location.href}`);
         }
       } catch (error) {
-        console.error(`Error processing ${action === 'phantom_connect' ? 'Phantom' : 'Backpack'} connection:`, error);
+        console.error("Error processing Phantom connection:", error);
         toast({
           title: "Connection Error",
           description: "Error processing wallet connection response.",
@@ -394,124 +372,99 @@ export default function Home() {
     }
     
     // Handle wallet transaction callbacks
-    if (action && (action === 'phantom_transaction' || action === 'backpack_transaction')) {
-      const walletType = action === 'phantom_transaction' ? 'Phantom' : 'Backpack';
+    if (action && action === 'phantom_transaction') {
       let transactionSuccess = true;
       let signature = null;
       
-      // For Phantom's encrypted transaction response
-      if (action === 'phantom_transaction') {
-        try {
-          // For properly encrypted transactions, Phantom provides data, nonce params
-          const data = urlParams.get('data');
-          const nonce = urlParams.get('nonce');
-          
-          // Check for error first
-          if (urlParams.has('errorCode') || urlParams.has('errorMessage')) {
-            transactionSuccess = false;
-            toast({
-              title: "Transaction Failed",
-              description: urlParams.get('errorMessage') || "Transaction was rejected",
-              variant: "destructive",
-            });
-          } 
-          // Try to decrypt transaction response if available
-          else if (data && nonce) {
-            // Attempt to decrypt the response using our shared secret
-            try {
-              // Decrypt the payload to get transaction result
-              const transactionData = processPhantomResponse(window.location.href);
-              
-              // Check if we have transaction data
-              if (transactionData) {
-                // For future signature support - Phantom may add this later
-                if ('signature' in transactionData) {
-                  // @ts-ignore - Phantom will add this in the future
-                  const txSignature = transactionData.signature as string;
-                  signature = txSignature;
-                  transactionSuccess = true;
-                  
-                  toast({
-                    title: "Transaction Confirmed",
-                    description: `Transaction signed with signature: ${txSignature.substring(0, 8)}...`,
-                  });
-                } else {
-                  // No signature but transaction was processed
-                  transactionSuccess = true;
-                  toast({
-                    title: "Transaction Sent",
-                    description: "Transaction was processed by wallet",
-                  });
-                }
-              } else {
-                console.warn("Transaction response had no signature");
-                transactionSuccess = true; // Still mark as successful as it wasn't rejected
-                toast({
-                  title: "Transaction Sent",
-                  description: `Transaction was processed by Phantom wallet`,
-                });
-              }
-            } catch (decryptError) {
-              console.error("Failed to decrypt transaction response:", decryptError);
-              transactionSuccess = false;
-              toast({
-                title: "Transaction Processing Error",
-                description: "Could not verify transaction result",
-                variant: "destructive",
-              });
-            }
-          } 
-          // Simple response with just a signature
-          else if (urlParams.has('signature')) {
-            const urlSignature = urlParams.get('signature');
-            signature = urlSignature;
-            transactionSuccess = true;
-            toast({
-              title: "Transaction Sent",
-              description: urlSignature 
-                ? `Transaction signed with signature: ${urlSignature.substring(0, 8)}...`
-                : "Transaction was processed successfully",
-            });
-          } 
-          // No structured response
-          else {
-            // Assume success if no error code is present
-            transactionSuccess = true;
-            toast({
-              title: "Transaction Sent",
-              description: `Your transaction was processed by Phantom wallet!`,
-            });
-          }
-        } catch (error) {
-          console.error("Error processing transaction response:", error);
-          transactionSuccess = false;
-          toast({
-            title: "Transaction Error",
-            description: "An unexpected error occurred while processing the transaction response",
-            variant: "destructive",
-          });
-        }
-      } 
-      // For Backpack's transaction response handling
-      else {
-        let signatureParam = urlParams.get('signature');
+      try {
+        // For properly encrypted transactions, Phantom provides data, nonce params
+        const data = urlParams.get('data');
+        const nonce = urlParams.get('nonce');
         
+        // Check for error first
         if (urlParams.has('errorCode') || urlParams.has('errorMessage')) {
           transactionSuccess = false;
           toast({
             title: "Transaction Failed",
-            description: urlParams.get('errorMessage') || "Transaction was not completed",
+            description: urlParams.get('errorMessage') || "Transaction was rejected",
             variant: "destructive",
           });
-        } else {
-          signature = signatureParam;
+        } 
+        // Try to decrypt transaction response if available
+        else if (data && nonce) {
+          // Attempt to decrypt the response using our shared secret
+          try {
+            // Decrypt the payload to get transaction result
+            const transactionData = processPhantomResponse(window.location.href);
+            
+            // Check if we have transaction data
+            if (transactionData) {
+              // For future signature support - Phantom may add this later
+              if ('signature' in transactionData) {
+                // @ts-ignore - Phantom will add this in the future
+                const txSignature = transactionData.signature as string;
+                signature = txSignature;
+                transactionSuccess = true;
+                
+                toast({
+                  title: "Transaction Confirmed",
+                  description: `Transaction signed with signature: ${txSignature.substring(0, 8)}...`,
+                });
+              } else {
+                // No signature but transaction was processed
+                transactionSuccess = true;
+                toast({
+                  title: "Transaction Sent",
+                  description: "Transaction was processed by wallet",
+                });
+              }
+            } else {
+              console.warn("Transaction response had no signature");
+              transactionSuccess = true; // Still mark as successful as it wasn't rejected
+              toast({
+                title: "Transaction Sent",
+                description: `Transaction was processed by Phantom wallet`,
+              });
+            }
+          } catch (decryptError) {
+            console.error("Failed to decrypt transaction response:", decryptError);
+            transactionSuccess = false;
+            toast({
+              title: "Transaction Processing Error",
+              description: "Could not verify transaction result",
+              variant: "destructive",
+            });
+          }
+        } 
+        // Simple response with just a signature
+        else if (urlParams.has('signature')) {
+          const urlSignature = urlParams.get('signature');
+          signature = urlSignature;
+          transactionSuccess = true;
           toast({
             title: "Transaction Sent",
-            description: signatureParam 
-              ? `Transaction signed with signature: ${signatureParam.substring(0, 8)}...` 
-              : `Your transaction was processed by wallet!`,
+            description: urlSignature 
+              ? `Transaction signed with signature: ${urlSignature.substring(0, 8)}...`
+              : "Transaction was processed successfully",
+          });
+        } 
+        // No structured response
+        else {
+          // Assume success if no error code is present
+          transactionSuccess = true;
+          toast({
+            title: "Transaction Sent",
+            description: `Your transaction was processed by Phantom wallet!`,
           });
         }
+      } catch (error) {
+        console.error("Error processing transaction response:", error);
+        transactionSuccess = false;
+        toast({
+          title: "Transaction Error",
+          description: "An unexpected error occurred while processing the transaction response",
+          variant: "destructive",
+        });
       }
       
       // For demo purposes
@@ -521,7 +474,7 @@ export default function Home() {
       
       // Record the transaction with the correct wallet type and duration
       // Always use the current connectionMethod to ensure consistency between UI and data
-      const connectionType = connectionMethod || (action === 'phantom_transaction' ? "phantom" : "phantom");
+      const connectionType = connectionMethod || "phantom";
       
       // Calculate transaction duration if we have a start time in localStorage
       let duration;
@@ -611,7 +564,7 @@ export default function Home() {
         console.warn("Error handling pending transaction:", e);
       }
     }
-  }, [processPhantomResponse, processBackpackResponse, toast, showTransactionModal]);
+  }, [processPhantomResponse, toast, showTransactionModal]);
 
   // Load wallet balance when connected
   useEffect(() => {
@@ -732,25 +685,7 @@ export default function Home() {
     }
   };
 
-  const connectWithBackpack = () => {
-    try {
-      // This will redirect to Backpack wallet
-      connectBackpack();
-      
-      // No need to set wallet address here, as it will be handled in the URL callback
-      toast({
-        title: "Connection Initiated",
-        description: "Redirecting to Backpack wallet for connection...",
-      });
-    } catch (error) {
-      console.error("Error connecting with Backpack:", error);
-      toast({
-        title: "Connection Error",
-        description: "An error occurred while connecting with Backpack wallet.",
-        variant: "destructive",
-      });
-    }
-  };
+  // Removed Backpack wallet connection function
 
   const handleDisconnect = async () => {
     try {

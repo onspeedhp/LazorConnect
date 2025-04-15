@@ -1,35 +1,20 @@
-import { FC, useState } from 'react';
+import { FC } from 'react';
 import { usePhantomWallet } from '@/hooks/use-phantom-wallet';
-import { useBackpackWallet } from '@/hooks/use-backpack-wallet';
 import phantomLogo from '../../assets/phantom.png';
-import backpackLogo from '../../assets/backpack.png';
 
 interface WalletModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type WalletOption = 'phantom' | 'backpack' | null;
-
 const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   
   const { connectPhantom } = usePhantomWallet();
-  const { connectBackpack } = useBackpackWallet();
-  const [selectedWallet, setSelectedWallet] = useState<WalletOption>(null);
-
-  const handleSelectWallet = (wallet: WalletOption) => {
-    setSelectedWallet(wallet);
-  };
 
   const handleConnect = () => {
-    if (selectedWallet === 'phantom') {
-      // This will redirect to Phantom mobile app via deeplink
-      connectPhantom();
-    } else if (selectedWallet === 'backpack') {
-      // This will redirect to Backpack app via deeplink
-      connectBackpack();
-    }
+    // This will redirect to Phantom mobile app via deeplink
+    connectPhantom();
     onClose();
   };
 
@@ -47,84 +32,56 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose }) => {
             <i className="fas fa-wallet text-white text-2xl"></i>
           </div>
           <h3 className="text-xl font-bold mb-2">Connect Your Wallet</h3>
-          <p className="text-sm text-[#474A57]">Choose a wallet to connect to</p>
+          <p className="text-sm text-[#474A57]">Use your existing Wallet app</p>
         </div>
         
-        <div className="mb-6 grid grid-cols-2 gap-3">
+        <div className="mb-6 flex justify-center">
           <div 
-            className={`border rounded-xl p-4 flex flex-col items-center transition-all cursor-pointer ${
-              selectedWallet === 'phantom' 
-                ? 'border-[#5348A3] bg-[#5348A3]/5' 
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-            onClick={() => handleSelectWallet('phantom')}
+            className="border rounded-xl p-4 flex flex-col items-center transition-all cursor-pointer border-[#5348A3] bg-[#5348A3]/5 w-40"
           >
             <div className="w-12 h-12 rounded-full mb-2 bg-[#9c85f7] p-1 flex items-center justify-center">
               <img src={phantomLogo} alt="Phantom Logo" className="w-9 h-9" />
             </div>
             <span className="text-sm font-medium">Phantom</span>
           </div>
-          
-          <div 
-            className={`border rounded-xl p-4 flex flex-col items-center transition-all cursor-pointer ${
-              selectedWallet === 'backpack' 
-                ? 'border-[#5348A3] bg-[#5348A3]/5' 
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-            onClick={() => handleSelectWallet('backpack')}
-          >
-            <div className="w-12 h-12 rounded-full bg-white border border-gray-100 flex items-center justify-center mb-2 p-1">
-              <img src={backpackLogo} alt="Backpack Logo" className="w-8 h-8" />
-            </div>
-            <span className="text-sm font-medium">Backpack</span>
-          </div>
         </div>
         
-        {selectedWallet && (
-          <div className="border border-gray-200 rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Connection Process</span>
-              <div className="flex items-center">
-                <div className="h-2 w-2 rounded-full bg-[#00D170] mr-2"></div>
-                <span className="text-xs text-[#00D170]">Ready</span>
-              </div>
+        <div className="border border-gray-200 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium">Connection Process</span>
+            <div className="flex items-center">
+              <div className="h-2 w-2 rounded-full bg-[#00D170] mr-2"></div>
+              <span className="text-xs text-[#00D170]">Ready</span>
             </div>
-            <ol className="text-sm text-[#474A57] space-y-2">
-              <li className="flex items-center">
-                <div className="w-5 h-5 rounded-full bg-[#00D170] flex items-center justify-center mr-2 text-white text-xs">
-                  <i className="fas fa-check"></i>
-                </div>
-                <span>Deeplink prepared</span>
-              </li>
-              <li className="flex items-center">
-                <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
-                  2
-                </div>
-                <span>Redirect to {selectedWallet === 'phantom' ? 'Phantom' : 'Backpack'} app</span>
-              </li>
-              <li className="flex items-center">
-                <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
-                  3
-                </div>
-                <span>Approve connection</span>
-              </li>
-            </ol>
           </div>
-        )}
+          <ol className="text-sm text-[#474A57] space-y-2">
+            <li className="flex items-center">
+              <div className="w-5 h-5 rounded-full bg-[#00D170] flex items-center justify-center mr-2 text-white text-xs">
+                <i className="fas fa-check"></i>
+              </div>
+              <span>Deeplink prepared</span>
+            </li>
+            <li className="flex items-center">
+              <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
+                2
+              </div>
+              <span>Redirect to Phantom app</span>
+            </li>
+            <li className="flex items-center">
+              <div className="w-5 h-5 rounded-full bg-[#9FA3B5]/30 flex items-center justify-center mr-2 text-white text-xs">
+                3
+              </div>
+              <span>Approve connection</span>
+            </li>
+          </ol>
+        </div>
         
         <div className="flex flex-col">
           <button 
-            onClick={handleConnect} 
-            disabled={!selectedWallet}
-            className={`py-3 px-8 rounded-xl text-white font-medium transition-all duration-300 ${
-              selectedWallet 
-                ? 'bg-gradient-to-r from-[#4e44ce] to-[#735cff] hover:shadow-lg hover:shadow-[#735cff]/30' 
-                : 'bg-gray-300 cursor-not-allowed'
-            }`}
+            onClick={handleConnect}
+            className="py-3 px-8 rounded-xl text-white font-medium transition-all duration-300 bg-gradient-to-r from-[#4e44ce] to-[#735cff] hover:shadow-lg hover:shadow-[#735cff]/30"
           >
-            {selectedWallet 
-              ? `Connect with ${selectedWallet === 'phantom' ? 'Phantom' : 'Backpack'}` 
-              : 'Select a wallet first'}
+            Connect with Phantom
           </button>
         </div>
       </div>
