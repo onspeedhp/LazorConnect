@@ -272,7 +272,7 @@ export default function Home() {
         if (isConnected && walletAddress) {
           try {
             let newBalance = 0;
-            if (connectionMethod === "backpack") {
+            if (connectionMethod === "phantom") {
               newBalance = await getPhantomBalance(walletAddress);
             } else if (connectionMethod === "passkey") {
               newBalance = await LazorKit.getBalance();
@@ -347,13 +347,13 @@ export default function Home() {
         
         // Process connection response from the URL
         let publicKey: string | null = null;
-        let walletType: "backpack" | null = null;
+        let walletType: "phantom" | null = null;
         
         if (action === 'phantom_connect') {
           const response = processPhantomResponse(window.location.href);
           if (response && response.publicKey) {
             publicKey = response.publicKey;
-            walletType = "backpack"; // Phantom uses "backpack" for UI compatibility
+            walletType = "phantom"; // Use phantom as the connection method
             console.log("Successfully processed Phantom connection:", {
               publicKey: response.publicKey,
               session: response.session
@@ -521,7 +521,7 @@ export default function Home() {
       
       // Record the transaction with the correct wallet type and duration
       // Always use the current connectionMethod to ensure consistency between UI and data
-      const connectionType = connectionMethod || (action === 'phantom_transaction' ? "backpack" : "backpack");
+      const connectionType = connectionMethod || (action === 'phantom_transaction' ? "phantom" : "phantom");
       
       // Calculate transaction duration if we have a start time in localStorage
       let duration;
@@ -549,7 +549,7 @@ export default function Home() {
           if (isConnected && walletAddress) {
             try {
               let newBalance = 0;
-              if (connectionMethod === "backpack") {
+              if (connectionMethod === "phantom") {
                 newBalance = await getPhantomBalance(walletAddress);
               } else if (connectionMethod === "passkey") {
                 newBalance = await LazorKit.getBalance();
@@ -619,8 +619,8 @@ export default function Home() {
       if (isConnected && walletAddress) {
         try {
           let currentBalance = 0;
-          if (connectionMethod === "backpack") {
-            currentBalance = await getPhantomBalance(walletAddress); // Use Phantom for now
+          if (connectionMethod === "phantom") {
+            currentBalance = await getPhantomBalance(walletAddress); 
           } else if (connectionMethod === "passkey") {
             currentBalance = await LazorKit.getBalance();
           }
@@ -645,7 +645,7 @@ export default function Home() {
 
     try {
       let signature = null;
-      if (connectionMethod === "backpack") {
+      if (connectionMethod === "phantom") {
         signature = await requestPhantomAirdrop(walletAddress, 1);
       } else if (connectionMethod === "passkey") {
         signature = await LazorKit.requestAirdrop(1);
@@ -927,7 +927,7 @@ export default function Home() {
           />
         ) : (
           <Dashboard
-            connectionMethod={connectionMethod as "passkey" | "backpack"}
+            connectionMethod={connectionMethod as "passkey" | "phantom"}
             walletAddress={walletAddress}
             onDisconnect={handleDisconnect}
             onSendTransaction={handleSendTransaction}
@@ -954,7 +954,7 @@ export default function Home() {
         isOpen={showTransactionModal}
         onClose={() => setShowTransactionModal(false)}
         status={transactionStatus}
-        connectionMethod={connectionMethod as "passkey" | "backpack"}
+        connectionMethod={connectionMethod as "passkey" | "phantom"}
         amount={0.001}
       />
 
