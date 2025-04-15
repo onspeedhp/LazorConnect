@@ -1,7 +1,6 @@
 import { FC, useState } from 'react';
 import { ClientTransaction } from '@shared/schema';
 import { useToast } from "@/hooks/use-toast";
-import PerformanceMetrics from '@/components/PerformanceMetrics';
 
 interface DashboardProps {
   connectionMethod: 'passkey' | 'phantom';
@@ -154,11 +153,6 @@ const Dashboard: FC<DashboardProps> = ({
       {/* Transaction History */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Transaction History</h3>
-        {transactions.length > 0 && (
-          <span className="text-xs text-[#7857FF] flex items-center">
-            <i className="fas fa-chart-bar mr-1"></i> Performance metrics available below
-          </span>
-        )}
       </div>
       <div className="space-y-3 mb-6">
         {transactions.length === 0 ? (
@@ -201,8 +195,6 @@ const Dashboard: FC<DashboardProps> = ({
           <div className="text-center">
             <p className="text-xs text-[#9FA3B5]">
               + {transactions.length - 3} more transactions 
-              <br />
-              <span className="text-[#7857FF]">See performance metrics below for full analysis</span>
             </p>
           </div>
         )}
@@ -250,16 +242,7 @@ const Dashboard: FC<DashboardProps> = ({
         </div>
       </div>
       
-      {/* Performance Metrics */}
-      {transactions.length > 0 && (
-        <>
-          <div className="flex items-center mb-4">
-            <i className="fas fa-tachometer-alt text-lg text-[#7857FF] mr-2"></i>
-            <h3 className="text-lg font-semibold">Performance Metrics</h3>
-          </div>
-          <PerformanceMetrics transactions={transactions} />
-        </>
-      )}
+      {/* Performance Metrics section has been removed */}
     </section>
   );
 };
