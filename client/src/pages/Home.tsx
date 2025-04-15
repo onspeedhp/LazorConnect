@@ -6,6 +6,7 @@ import PasskeyModal from "@/components/modals/PasskeyModal";
 import WalletModal from "@/components/modals/WalletModal";
 import TransactionModal from "@/components/modals/TransactionModal";
 import BiometricPrompt from "@/components/modals/BiometricPrompt";
+import PerformanceMetrics from "@/components/PerformanceMetrics";
 import { ClientTransaction } from "@shared/schema";
 import LazorKit from "@/lib/lazorKit";
 import { usePhantomWallet } from "@/hooks/use-phantom-wallet";
@@ -21,6 +22,24 @@ export default function Home() {
     useState<ConnectionMethod>(null);
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [transactions, setTransactions] = useState<ClientTransaction[]>([]);
+  
+  // Load saved transactions from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedTransactions = localStorage.getItem('solana_transactions');
+      if (savedTransactions) {
+        const parsedTx = JSON.parse(savedTransactions) as Array<any>;
+        // Convert ISO date strings back to Date objects
+        setTransactions(parsedTx.map(tx => ({
+          ...tx,
+          timestamp: new Date(tx.timestamp)
+        })));
+        console.log("Loaded transactions from localStorage:", parsedTx.length);
+      }
+    } catch (e) {
+      console.warn('Could not load transactions from localStorage', e);
+    }
+  }, []);
   const [balance, setBalance] = useState<number>(0);
   const [isAirdropLoading, setIsAirdropLoading] = useState<boolean>(false);
 
@@ -36,6 +55,9 @@ export default function Home() {
   const [biometricAction, setBiometricAction] = useState<
     "connect" | "transaction"
   >("connect");
+  
+  // Track transaction performance metrics
+  const [transactionStartTime, setTransactionStartTime] = useState<number | null>(null);
 
   // Use our custom wallet hooks
   const { 
@@ -117,20 +139,47 @@ export default function Home() {
     };
   }, []);
 
-  // Function to add a new transaction to the history
+  // Function to add a new transaction to the history with performance metrics
   const addTransaction = (
     amount: number,
     success: boolean,
     method: "passkey" | "backpack",
+    duration?: number,
   ) => {
+    // Calculate duration if not provided but we have a start time
+    let txDuration = duration;
+    if (!txDuration && transactionStartTime) {
+      txDuration = Date.now() - transactionStartTime;
+      console.log(`Calculated transaction duration: ${txDuration}ms for ${method}`);
+    }
+    
     const newTransaction: ClientTransaction = {
       id: `tx_${Date.now()}`,
       amount,
       success,
       timestamp: new Date(),
       connectionMethod: method,
+      duration: txDuration
     };
+    
+    // Reset the transaction start time
+    setTransactionStartTime(null);
+    
+    // Add to transactions list
     setTransactions((prev) => [newTransaction, ...prev]);
+    
+    // Also store in localStorage for persistence between sessions
+    try {
+      const updatedTransactions = [newTransaction, ...transactions];
+      localStorage.setItem('solana_transactions', JSON.stringify(
+        updatedTransactions.map(tx => ({
+          ...tx,
+          timestamp: tx.timestamp.toISOString() // Convert Date to string for storage
+        }))
+      ));
+    } catch (e) {
+      console.warn('Could not save transaction to localStorage', e);
+    }
   };
 
   // Parse hash fragments for transaction callbacks
