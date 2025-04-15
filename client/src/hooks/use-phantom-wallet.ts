@@ -455,8 +455,19 @@ export function usePhantomWallet() {
       const [nonce, encryptedPayload] = encryptPayload(payload);
       
       // Generate a redirect URL for handling the transaction response
-      // Use fragment identifier (#) instead of query parameters to prevent page reload
-      const redirectUrl = `${window.location.origin}${window.location.pathname}#phantom_transaction?timestamp=${Date.now()}`;
+      // Use a proper query parameter approach for better compatibility
+      const redirectUrl = new URL(`${window.location.origin}${window.location.pathname}`);
+      redirectUrl.searchParams.append("action", "phantom_transaction");
+      redirectUrl.searchParams.append("transaction_id", Date.now().toString());
+      
+      // Store the transaction info in localStorage for stateful processing
+      // This helps prevent page reloads from losing state
+      try {
+        localStorage.setItem("phantom_transaction_pending", "true");
+        localStorage.setItem("phantom_transaction_timestamp", Date.now().toString());
+      } catch (storageError) {
+        console.warn("Could not store transaction data in localStorage:", storageError);
+      }
       
       // Prepare parameters for the deeplink
       const params = new URLSearchParams({

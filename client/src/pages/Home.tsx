@@ -244,6 +244,9 @@ export default function Home() {
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get('action');
     
+    // Check if we have a pending transaction in localStorage
+    const hasPendingTransaction = localStorage.getItem("phantom_transaction_pending") === "true";
+    
     // Handle wallet connection callbacks
     if (action && (action === 'phantom_connect' || action === 'backpack_connect')) {
       try {
@@ -479,8 +482,52 @@ export default function Home() {
       
       // Clean up the URL
       window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Clear the pending transaction flag
+      try {
+        localStorage.removeItem("phantom_transaction_pending");
+        localStorage.removeItem("phantom_transaction_timestamp");
+      } catch (e) {
+        console.warn("Could not clear transaction data from localStorage");
+      }
     }
-  }, [processPhantomResponse, processBackpackResponse, toast]);
+    // Also handle the case where we have a pending transaction in localStorage
+    // but no URL parameters (this happens if the user manually closed Phantom)
+    else if (hasPendingTransaction && !action) {
+      // Check how long the transaction has been pending
+      try {
+        const timestamp = localStorage.getItem("phantom_transaction_timestamp");
+        const pendingTime = timestamp ? Date.now() - parseInt(timestamp) : 0;
+        
+        // If it's been pending for more than 2 minutes, assume it was cancelled
+        if (pendingTime > 120000) {
+          toast({
+            title: "Transaction Cancelled",
+            description: "The transaction appears to have been cancelled or timed out",
+            variant: "destructive",
+          });
+          
+          setTransactionStatus("error");
+          setShowTransactionModal(true);
+          
+          // Clear the pending transaction flag
+          localStorage.removeItem("phantom_transaction_pending");
+          localStorage.removeItem("phantom_transaction_timestamp");
+        }
+        // Otherwise, just show that it's still processing
+        else if (!showTransactionModal) {
+          setTransactionStatus("processing");
+          setShowTransactionModal(true);
+          toast({
+            title: "Transaction Processing",
+            description: "Your transaction is still being processed...",
+          });
+        }
+      } catch (e) {
+        console.warn("Error handling pending transaction:", e);
+      }
+    }
+  }, [processPhantomResponse, processBackpackResponse, toast, showTransactionModal]);
 
   // Load wallet balance when connected
   useEffect(() => {
