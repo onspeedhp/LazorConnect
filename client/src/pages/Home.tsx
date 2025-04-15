@@ -40,7 +40,8 @@ export default function Home() {
   // Use our custom wallet hooks
   const { 
     connectPhantom, 
-    processConnectionResponse: processPhantomResponse, 
+    processConnectionResponse: processPhantomResponse,
+    processTransactionResponse: processPhantomTransactionResponse,
     disconnectPhantom, 
     getWalletBalance: getPhantomBalance, 
     requestAirdrop: requestPhantomAirdrop, 
@@ -157,14 +158,41 @@ export default function Home() {
       
       console.log("Transaction response received via hash:", txData);
       
-      // For demo purposes, always handle as successful transaction
+      let transactionSuccess = true;
+      let signature = null;
       const transactionAmount = 0.001;
       
-      // Show success message
-      toast({
-        title: "Transaction Confirmed",
-        description: "Your transaction was processed successfully!",
-      });
+      // Use our new transaction response handler to get the data
+      if (txData.type === 'phantom') {
+        const transactionData = processPhantomTransactionResponse(window.location.href);
+        
+        if (transactionData) {
+          console.log("Processed transaction data from hash:", transactionData);
+          
+          // Check if we have a signature property
+          if ('signature' in transactionData) {
+            signature = transactionData.signature;
+            toast({
+              title: "Transaction Confirmed",
+              description: `Transaction signed with signature: ${signature.toString().substring(0, 8)}...`,
+            });
+          } else {
+            // No signature but transaction was processed
+            toast({
+              title: "Transaction Confirmed",
+              description: "Your transaction was processed successfully!",
+            });
+          }
+        } else {
+          // If we couldn't extract transaction data, still proceed as success
+          // but log a warning
+          console.warn("Could not extract transaction data from hash");
+          toast({
+            title: "Transaction Processed",
+            description: "Your transaction was processed by the wallet",
+          });
+        }
+      }
       
       // Update transaction UI
       setTransactionStatus("success");
@@ -208,7 +236,7 @@ export default function Home() {
       window.removeEventListener('hashchange', handleHashChange);
     };
   }, [parseTransactionHash, toast, addTransaction, connectionMethod,
-      getPhantomBalance, isConnected, walletAddress]);
+      getPhantomBalance, isConnected, walletAddress, processPhantomTransactionResponse]);
   
   // Check for wallet callback in URL
   useEffect(() => {
