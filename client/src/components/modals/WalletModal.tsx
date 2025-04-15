@@ -1,6 +1,8 @@
 import { FC, useState } from 'react';
 import { usePhantomWallet } from '@/hooks/use-phantom-wallet';
 import { useBackpackWallet } from '@/hooks/use-backpack-wallet';
+import phantomLogo from '../../assets/phantom.png';
+import backpackLogo from '../../assets/backpack.png';
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -57,7 +59,9 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose }) => {
             }`}
             onClick={() => handleSelectWallet('phantom')}
           >
-            <img src="https://phantom.app/apple-touch-icon.png" alt="Phantom Logo" className="w-12 h-12 rounded-full mb-2" />
+            <div className="w-12 h-12 rounded-full mb-2 bg-[#9c85f7] p-1 flex items-center justify-center">
+              <img src={phantomLogo} alt="Phantom Logo" className="w-9 h-9" />
+            </div>
             <span className="text-sm font-medium">Phantom</span>
           </div>
           
@@ -69,8 +73,8 @@ const WalletModal: FC<WalletModalProps> = ({ isOpen, onClose }) => {
             }`}
             onClick={() => handleSelectWallet('backpack')}
           >
-            <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center mb-2">
-              <span className="text-white text-xs font-bold">BP</span>
+            <div className="w-12 h-12 rounded-full bg-white border border-gray-100 flex items-center justify-center mb-2 p-1">
+              <img src={backpackLogo} alt="Backpack Logo" className="w-8 h-8" />
             </div>
             <span className="text-sm font-medium">Backpack</span>
           </div>
