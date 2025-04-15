@@ -90,13 +90,18 @@ const WelcomeSection: FC<WelcomeSectionProps> = ({
         
         <button
           onClick={onConnectWallet}
-          className="w-full bg-white rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center hover:shadow-md transition-all duration-300"
+          className="w-full bg-white rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-all duration-300"
         >
-          <div className="w-10 h-10 rounded-full bg-[#7857FF] flex items-center justify-center mb-3">
-            <i className="fas fa-wallet text-white"></i>
+          <div className="flex items-start">
+            <div className="w-10 h-10 rounded-full bg-[#7857FF] flex items-center justify-center mr-3">
+              <i className="fas fa-wallet text-white"></i>
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Connect with Backpack</h3>
+              <p className="text-sm text-[#9FA3B5]">Use your existing Backpack wallet</p>
+            </div>
           </div>
-          <h3 className="font-semibold text-lg text-center">Connect with Wallet App</h3>
-          <p className="text-sm text-[#9FA3B5] text-center">Use your existing wallet application</p>
+          <i className="fas fa-chevron-right text-[#9FA3B5]"></i>
         </button>
       </div>
     </section>
