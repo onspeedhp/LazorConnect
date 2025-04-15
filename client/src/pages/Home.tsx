@@ -138,7 +138,15 @@ export default function Home() {
     const hash = window.location.hash;
     if (!hash) return null;
     
-    // Check for transaction pattern in hash
+    // Check for our new pure hash format (most reliable for mobile)
+    if (hash.startsWith('#phantom-tx-')) {
+      return {
+        type: 'phantom',
+        timestamp: hash.replace('#phantom-tx-', '')
+      };
+    }
+    
+    // Also check for older format for backward compatibility
     if (hash.startsWith('#phantom_transaction')) {
       return {
         type: 'phantom',
