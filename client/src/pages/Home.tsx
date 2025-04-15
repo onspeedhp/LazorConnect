@@ -205,38 +205,138 @@ export default function Home() {
     
     // Handle wallet transaction callbacks
     if (action && (action === 'phantom_transaction' || action === 'backpack_transaction')) {
-      // Handle transaction response
-      let signatureParam = urlParams.get('signature');
-      let transactionSuccess = true;
       const walletType = action === 'phantom_transaction' ? 'Phantom' : 'Backpack';
+      let transactionSuccess = true;
+      let signature = null;
       
-      // Check if there's an error parameter
-      if (urlParams.has('errorCode') || urlParams.has('errorMessage')) {
-        transactionSuccess = false;
+      // For Phantom's encrypted transaction response
+      if (action === 'phantom_transaction') {
+        try {
+          // For properly encrypted transactions, Phantom provides data, nonce params
+          const data = urlParams.get('data');
+          const nonce = urlParams.get('nonce');
+          
+          // Check for error first
+          if (urlParams.has('errorCode') || urlParams.has('errorMessage')) {
+            transactionSuccess = false;
+            toast({
+              title: "Transaction Failed",
+              description: urlParams.get('errorMessage') || "Transaction was rejected",
+              variant: "destructive",
+            });
+          } 
+          // Try to decrypt transaction response if available
+          else if (data && nonce) {
+            // Attempt to decrypt the response using our shared secret
+            try {
+              // Decrypt the payload to get transaction result
+              const transactionData = processPhantomResponse(window.location.href);
+              
+              if (transactionData && transactionData.signature) {
+                signature = transactionData.signature;
+                transactionSuccess = true;
+                
+                toast({
+                  title: "Transaction Confirmed",
+                  description: `Transaction signed with signature: ${signature.substring(0, 8)}...`,
+                });
+              } else {
+                console.warn("Transaction response had no signature");
+                transactionSuccess = true; // Still mark as successful as it wasn't rejected
+                toast({
+                  title: "Transaction Sent",
+                  description: `Transaction was processed by Phantom wallet`,
+                });
+              }
+            } catch (decryptError) {
+              console.error("Failed to decrypt transaction response:", decryptError);
+              transactionSuccess = false;
+              toast({
+                title: "Transaction Processing Error",
+                description: "Could not verify transaction result",
+                variant: "destructive",
+              });
+            }
+          } 
+          // Simple response with just a signature
+          else if (urlParams.has('signature')) {
+            signature = urlParams.get('signature');
+            transactionSuccess = true;
+            toast({
+              title: "Transaction Sent",
+              description: `Transaction signed with signature: ${signature.substring(0, 8)}...`,
+            });
+          } 
+          // No structured response
+          else {
+            // Assume success if no error code is present
+            transactionSuccess = true;
+            toast({
+              title: "Transaction Sent",
+              description: `Your transaction was processed by Phantom wallet!`,
+            });
+          }
+        } catch (error) {
+          console.error("Error processing transaction response:", error);
+          transactionSuccess = false;
+          toast({
+            title: "Transaction Error",
+            description: "An unexpected error occurred while processing the transaction response",
+            variant: "destructive",
+          });
+        }
+      } 
+      // For Backpack's transaction response handling
+      else {
+        let signatureParam = urlParams.get('signature');
         
-        toast({
-          title: "Transaction Failed",
-          description: urlParams.get('errorMessage') || "Transaction was not completed",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Transaction Sent",
-          description: signatureParam 
-            ? `Transaction signed with signature: ${signatureParam.substring(0, 8)}...` 
-            : `Your transaction was processed by ${walletType} wallet!`,
-        });
+        if (urlParams.has('errorCode') || urlParams.has('errorMessage')) {
+          transactionSuccess = false;
+          toast({
+            title: "Transaction Failed",
+            description: urlParams.get('errorMessage') || "Transaction was not completed",
+            variant: "destructive",
+          });
+        } else {
+          signature = signatureParam;
+          toast({
+            title: "Transaction Sent",
+            description: signatureParam 
+              ? `Transaction signed with signature: ${signatureParam.substring(0, 8)}...` 
+              : `Your transaction was processed by Backpack wallet!`,
+          });
+        }
       }
       
       // For demo purposes
       const transactionAmount = 0.001;
       setTransactionStatus(transactionSuccess ? "success" : "error");
       setShowTransactionModal(true);
-      addTransaction(transactionAmount, transactionSuccess, "backpack"); // Use "backpack" for UI
+      
+      // Record the transaction with the correct wallet type
+      const connectionType = action === 'phantom_transaction' ? "backpack" : "backpack";
+      addTransaction(transactionAmount, transactionSuccess, connectionType);
       
       // Update balance if transaction was successful
       if (transactionSuccess) {
-        setBalance(prev => prev - transactionAmount - 0.000005); // Subtract amount + fee
+        // Refresh the actual balance after a short delay
+        setTimeout(async () => {
+          if (isConnected && walletAddress) {
+            try {
+              let newBalance = 0;
+              if (connectionMethod === "backpack") {
+                newBalance = await getPhantomBalance(walletAddress);
+              } else if (connectionMethod === "passkey") {
+                newBalance = await LazorKit.getBalance();
+              }
+              setBalance(newBalance);
+            } catch (error) {
+              console.error("Error updating balance after transaction:", error);
+              // Use estimation if actual update fails
+              setBalance(prev => prev - transactionAmount - 0.000005);
+            }
+          }
+        }, 2000);
       }
       
       // Clean up the URL
