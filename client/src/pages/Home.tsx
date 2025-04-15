@@ -371,11 +371,11 @@ export default function Home() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
     
-    // Handle wallet transaction callbacks - Always show success when returning from Phantom
+    // Handle wallet transaction callbacks - Show processing for 5 seconds then success
     if (action && action === 'phantom_transaction') {
       // Always set transaction success to true
       let transactionSuccess = true;
-      let signature = null;
+      let signature: string | null = null;
       
       try {
         // For properly encrypted transactions, Phantom provides data, nonce params
@@ -405,35 +405,62 @@ export default function Home() {
           signature = urlParams.get('signature');
         }
         
-        // Always show success toast
+        // First show processing toast
         toast({
-          title: "Transaction Successful",
-          description: signature 
-            ? `Transaction signed with signature: ${signature.substring(0, 8)}...`
-            : "Your transaction was successfully processed!",
+          title: "Transaction Processing",
+          description: "Your transaction is being processed...",
         });
+        
+        // Initially set to processing
+        setTransactionStatus("processing");
+        setShowTransactionModal(true);
+        
+        // After 5 seconds, update to success
+        setTimeout(() => {
+          setTransactionStatus("success");
+          
+          // Then show success toast
+          toast({
+            title: "Transaction Successful",
+            description: signature 
+              ? `Transaction signed with signature: ${signature.substring(0, 8)}...`
+              : "Your transaction was successfully processed!",
+          });
+        }, 5000);
         
       } catch (error) {
-        // Log the error but still show success to the user
+        // Log the error but still show processing then success to the user
         console.log("Error processing response, but showing success anyway:", error);
         
+        // First show processing
+        setTransactionStatus("processing");
+        setShowTransactionModal(true);
         toast({
-          title: "Transaction Successful",
-          description: "Your transaction was processed successfully!",
+          title: "Transaction Processing",
+          description: "Your transaction is being processed...",
         });
+        
+        // After 5 seconds, update to success
+        setTimeout(() => {
+          setTransactionStatus("success");
+          toast({
+            title: "Transaction Successful",
+            description: "Your transaction was processed successfully!",
+          });
+        }, 5000);
       }
       
       // For demo purposes
       const transactionAmount = 0.001;
-      setTransactionStatus(transactionSuccess ? "success" : "error");
-      setShowTransactionModal(true);
+      // We've already set the initial transaction status above
+      // So we don't need to override it here
       
       // Record the transaction with the correct wallet type and duration
       // Always use the current connectionMethod to ensure consistency between UI and data
       const connectionType = connectionMethod || "phantom";
       
       // Calculate transaction duration if we have a start time in localStorage
-      let duration;
+      let duration: number | undefined;
       try {
         const startTimeStr = localStorage.getItem("tx_start_time");
         if (startTimeStr) {
@@ -485,66 +512,86 @@ export default function Home() {
       }
     }
     // Also handle the case where we have a pending transaction in localStorage
-    // but no URL parameters - Always show success even for pending transactions
+    // but no URL parameters - Show processing for 5 seconds then success
     else if (hasPendingTransaction && !action) {
       try {
         const timestamp = localStorage.getItem("phantom_transaction_timestamp");
         const pendingTime = timestamp ? Date.now() - parseInt(timestamp) : 0;
         
-        // Always show success regardless of transaction state
+        // First show processing toast
         toast({
-          title: "Transaction Successful",
-          description: "Your transaction has been processed successfully!",
+          title: "Transaction Processing",
+          description: "Your transaction is being processed...",
         });
         
-        // Set status to success
-        setTransactionStatus("success");
+        // Show processing status initially
+        setTransactionStatus("processing");
         setShowTransactionModal(true);
         
         // Calculate duration for metrics
-        let duration;
+        let duration: number | undefined;
         if (timestamp) {
           duration = Date.now() - parseInt(timestamp);
         }
         
-        // Add the transaction as successful
-        const transactionAmount = 0.001;
-        const connectionType = connectionMethod || "phantom";
-        addTransaction(transactionAmount, true, connectionType, duration);
+        // After 5 seconds, update to success
+        setTimeout(() => {
+          // Set status to success after delay
+          setTransactionStatus("success");
+          
+          // Show success toast
+          toast({
+            title: "Transaction Successful",
+            description: "Your transaction has been processed successfully!",
+          });
+          
+          // Add the transaction as successful
+          const transactionAmount = 0.001;
+          const connectionType = connectionMethod || "phantom";
+          addTransaction(transactionAmount, true, connectionType, duration);
+          
+          // Update balance after transaction completes
+          setTimeout(async () => {
+            if (isConnected && walletAddress) {
+              try {
+                let newBalance = 0;
+                if (connectionMethod === "phantom") {
+                  newBalance = await getPhantomBalance(walletAddress);
+                } else if (connectionMethod === "passkey") {
+                  newBalance = await LazorKit.getBalance();
+                }
+                setBalance(newBalance);
+              } catch (error) {
+                console.error("Error updating balance after transaction:", error);
+                // Use estimation if actual update fails
+                setBalance(prev => prev - transactionAmount - 0.000005);
+              }
+            }
+          }, 2000);
+        }, 5000);
         
         // Clear the pending transaction flag
         localStorage.removeItem("phantom_transaction_pending");
         localStorage.removeItem("phantom_transaction_timestamp");
-        
-        // Update balance after a short delay
-        setTimeout(async () => {
-          if (isConnected && walletAddress) {
-            try {
-              let newBalance = 0;
-              if (connectionMethod === "phantom") {
-                newBalance = await getPhantomBalance(walletAddress);
-              } else if (connectionMethod === "passkey") {
-                newBalance = await LazorKit.getBalance();
-              }
-              setBalance(newBalance);
-            } catch (error) {
-              console.error("Error updating balance after transaction:", error);
-              // Use estimation if actual update fails
-              setBalance(prev => prev - transactionAmount - 0.000005);
-            }
-          }
-        }, 2000);
       } catch (e) {
         console.warn("Error handling pending transaction:", e);
         
-        // Show success even if there was an error
+        // Show processing first
+        setTransactionStatus("processing");
+        setShowTransactionModal(true);
         toast({
-          title: "Transaction Successful",
-          description: "Your transaction completed successfully!",
+          title: "Transaction Processing",
+          description: "Your transaction is being processed...",
         });
         
-        setTransactionStatus("success");
-        setShowTransactionModal(true);
+        // After 5 seconds, show success even if there was an error
+        setTimeout(() => {
+          setTransactionStatus("success");
+          toast({
+            title: "Transaction Successful",
+            description: "Your transaction completed successfully!",
+          });
+        }, 5000);
         
         // Clear the pending transaction flag
         localStorage.removeItem("phantom_transaction_pending");
@@ -740,7 +787,7 @@ export default function Home() {
           setTransactionStatus("success");
           
           // Add the transaction to history
-          let duration;
+          let duration: number | undefined;
           if (transactionStartTime) {
             duration = Date.now() - transactionStartTime;
           } else {
@@ -795,7 +842,7 @@ export default function Home() {
         setTransactionStatus("success");
         
         // Calculate transaction duration from start time or use the simulated time
-        let duration;
+        let duration: number | undefined;
         if (transactionStartTime) {
           duration = Date.now() - transactionStartTime;
         } else {
@@ -817,7 +864,7 @@ export default function Home() {
       setShowTransactionModal(true);
       
       // Calculate duration even for failed transactions
-      let duration;
+      let duration: number | undefined;
       if (transactionStartTime) {
         duration = Date.now() - transactionStartTime;
       }
