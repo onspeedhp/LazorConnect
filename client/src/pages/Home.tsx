@@ -272,7 +272,12 @@ export default function Home() {
         console.warn("Error calculating hash-based transaction duration:", e);
       }
       
-      addTransaction(transactionAmount, true, "backpack", duration);
+      // When using hash-based transactions, the type should match our current connection method
+      const methodType = connectionMethod || "backpack";
+      console.log(`Recording hash transaction with method: ${methodType}`);
+      
+      // Add transaction to history with correct method type
+      addTransaction(transactionAmount, true, methodType, duration);
       
       // Update balance after a short delay
       setTimeout(async () => {
@@ -527,7 +532,8 @@ export default function Home() {
       setShowTransactionModal(true);
       
       // Record the transaction with the correct wallet type and duration
-      const connectionType = action === 'phantom_transaction' ? "backpack" : "backpack";
+      // Always use the current connectionMethod to ensure consistency between UI and data
+      const connectionType = connectionMethod || (action === 'phantom_transaction' ? "backpack" : "backpack");
       
       // Calculate transaction duration if we have a start time in localStorage
       let duration;
