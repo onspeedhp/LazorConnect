@@ -455,9 +455,8 @@ export function usePhantomWallet() {
       const [nonce, encryptedPayload] = encryptPayload(payload);
       
       // Generate a redirect URL for handling the transaction response
-      const redirectUrl = new URL(`${window.location.origin}${window.location.pathname}`);
-      redirectUrl.searchParams.append("action", "phantom_transaction");
-      redirectUrl.searchParams.append("timestamp", Date.now().toString());
+      // Use fragment identifier (#) instead of query parameters to prevent page reload
+      const redirectUrl = `${window.location.origin}${window.location.pathname}#phantom_transaction?timestamp=${Date.now()}`;
       
       // Prepare parameters for the deeplink
       const params = new URLSearchParams({
