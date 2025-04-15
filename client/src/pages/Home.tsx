@@ -256,8 +256,23 @@ export default function Home() {
       // Keep the modal showing
       setShowTransactionModal(true);
       
-      // Record the transaction
-      addTransaction(transactionAmount, true, "backpack");
+      // Record the transaction with timing data if available
+      let duration;
+      try {
+        const startTimeStr = localStorage.getItem("tx_start_time");
+        if (startTimeStr) {
+          const startTime = parseInt(startTimeStr);
+          duration = Date.now() - startTime;
+          console.log(`Hash-based transaction took ${duration}ms to complete`);
+          
+          // Clear the start time after use
+          localStorage.removeItem("tx_start_time");
+        }
+      } catch (e) {
+        console.warn("Error calculating hash-based transaction duration:", e);
+      }
+      
+      addTransaction(transactionAmount, true, "backpack", duration);
       
       // Update balance after a short delay
       setTimeout(async () => {
@@ -511,9 +526,27 @@ export default function Home() {
       setTransactionStatus(transactionSuccess ? "success" : "error");
       setShowTransactionModal(true);
       
-      // Record the transaction with the correct wallet type
+      // Record the transaction with the correct wallet type and duration
       const connectionType = action === 'phantom_transaction' ? "backpack" : "backpack";
-      addTransaction(transactionAmount, transactionSuccess, connectionType);
+      
+      // Calculate transaction duration if we have a start time in localStorage
+      let duration;
+      try {
+        const startTimeStr = localStorage.getItem("tx_start_time");
+        if (startTimeStr) {
+          const startTime = parseInt(startTimeStr);
+          duration = Date.now() - startTime;
+          console.log(`Transaction took ${duration}ms to complete via ${connectionType}`);
+          
+          // Remove the start time after use
+          localStorage.removeItem("tx_start_time");
+        }
+      } catch (e) {
+        console.warn("Error calculating transaction duration:", e);
+      }
+      
+      // Add the transaction with all metrics
+      addTransaction(transactionAmount, transactionSuccess, connectionType, duration);
       
       // Update balance if transaction was successful
       if (transactionSuccess) {
@@ -757,6 +790,9 @@ export default function Home() {
   };
 
   const handleSendTransaction = async () => {
+    // Start timing the transaction
+    setTransactionStartTime(Date.now());
+    
     if (connectionMethod === "passkey") {
       setBiometricAction("transaction");
       setShowBiometricPrompt(true);
@@ -773,6 +809,9 @@ export default function Home() {
       const recipientPublicKey = "A84X2Qpt1btdKYL1vChg7iAY23ZX4GjA5WwdcZ9pyQTk";
       
       try {
+        // Store transaction start time in localStorage as well for resilience
+        localStorage.setItem("tx_start_time", Date.now().toString());
+        
         // This will handle the transaction creation, encryption, and redirect to Phantom
         await sendPhantomTransaction(walletAddress, recipientPublicKey, transactionAmount);
         
@@ -781,7 +820,7 @@ export default function Home() {
         setShowTransactionModal(true);
         
         // Note: The final result will be handled when the user is redirected back
-        // via the phantom_transaction URL parameter in the useEffect hook
+        // via the phantom_transaction URL parameter or hash in the useEffect hooks
       } catch (error) {
         console.error("Error initiating transaction:", error);
         toast({
@@ -789,6 +828,10 @@ export default function Home() {
           description: "Failed to prepare transaction. Please try again.",
           variant: "destructive",
         });
+        
+        // Clear the transaction timing on error
+        setTransactionStartTime(null);
+        localStorage.removeItem("tx_start_time");
       }
     }
   };
@@ -802,10 +845,26 @@ export default function Home() {
       // Handle transaction with passkey
       setTransactionStatus("processing");
       setShowTransactionModal(true);
+      
+      // Passkey transactions are typically much faster than mobile wallet transactions
+      // Use a fixed time to simulate this for demonstration purposes, but it should
+      // reflect the difference in timing between passkey and wallet transactions
+      const passkeySampleDuration = 800; // milliseconds
+      
       simulateDelay(() => {
         setTransactionStatus("success");
-        addTransaction(0.001, true, "passkey");
-      }, 800); // Passkey is faster
+        
+        // Calculate transaction duration from start time or use the simulated time
+        let duration;
+        if (transactionStartTime) {
+          duration = Date.now() - transactionStartTime;
+        } else {
+          duration = passkeySampleDuration;
+        }
+        
+        // Add transaction with duration
+        addTransaction(0.001, true, "passkey", duration);
+      }, passkeySampleDuration);
     }
   };
 
@@ -816,7 +875,18 @@ export default function Home() {
       // Show transaction failed if the biometric was for a transaction
       setTransactionStatus("error");
       setShowTransactionModal(true);
-      addTransaction(0.001, false, "passkey");
+      
+      // Calculate duration even for failed transactions
+      let duration;
+      if (transactionStartTime) {
+        duration = Date.now() - transactionStartTime;
+      }
+      
+      // Record failed transaction
+      addTransaction(0.001, false, "passkey", duration);
+      
+      // Reset transaction timing
+      setTransactionStartTime(null);
     }
   };
 

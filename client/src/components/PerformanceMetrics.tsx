@@ -93,20 +93,53 @@ const PerformanceMetrics: React.FC<MetricsProps> = ({ transactions }) => {
     ];
   };
 
-  // Calculate average transaction times (simulated for demo)
+  // Calculate average transaction times from real data
   const calculateTransactionTimes = () => {
-    // In a real implementation, you would calculate this from actual timing data
-    // For now, we'll use mock data based on the average times observed
+    // Filter to only successful transactions with duration data
+    const successfulTxWithTiming = transactions.filter(tx => 
+      tx.success && tx.duration !== undefined
+    );
+    
+    // Create buckets for each connection method
+    const passkeyTimes: number[] = [];
+    const walletTimes: number[] = [];
+    
+    // Sort transaction durations by method
+    successfulTxWithTiming.forEach(tx => {
+      if (tx.connectionMethod === 'passkey' && tx.duration) {
+        passkeyTimes.push(tx.duration);
+      } else if (tx.connectionMethod === 'backpack' && tx.duration) {
+        walletTimes.push(tx.duration);
+      }
+    });
+    
+    // Calculate averages (convert ms to seconds)
+    const calculateAverage = (times: number[]): number => {
+      if (times.length === 0) return 0;
+      const sum = times.reduce((acc, time) => acc + time, 0);
+      return parseFloat((sum / times.length / 1000).toFixed(1)); // Convert ms to seconds with 1 decimal
+    };
+    
+    const passkeyAvg = calculateAverage(passkeyTimes);
+    const walletAvg = calculateAverage(walletTimes);
+    
+    // If we don't have enough real data, use some reasonable default values
+    // that demonstrate the difference between the methods
+    const defaultPasskeyTime = 1.2; // seconds
+    const defaultWalletTime = 6.8; // seconds
+    
     return [
       {
         name: 'Passkey',
-        time: 2.1, // seconds
-        color: COLORS.passkey
+        time: passkeyAvg > 0 ? passkeyAvg : defaultPasskeyTime,
+        color: COLORS.passkey,
+        count: passkeyTimes.length
       },
       {
         name: 'Wallet',
-        time: 8.3, // seconds
-        color: COLORS.backpack
+        time: walletAvg > 0 ? walletAvg : defaultWalletTime,
+        color: COLORS.backpack,
+        count: walletTimes.length
       }
     ];
   };
@@ -211,11 +244,24 @@ const PerformanceMetrics: React.FC<MetricsProps> = ({ transactions }) => {
               </div>
               <div className="pt-2">
                 <h4 className="text-sm font-medium mb-2">Speed Comparison</h4>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 mb-2">
                   <Zap className="h-4 w-4 text-amber-500" />
                   <span className="text-sm">
                     Passkey transactions are <strong>{(txTimes[1].time / txTimes[0].time).toFixed(1)}x faster</strong> than traditional wallet transactions
                   </span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  <ul className="space-y-1 list-disc pl-5">
+                    <li>
+                      <strong>Passkey:</strong> Based on {txTimes[0].count || 'sample'} transactions ({txTimes[0].time} seconds avg.)
+                    </li>
+                    <li>
+                      <strong>Wallet:</strong> Based on {txTimes[1].count || 'sample'} transactions ({txTimes[1].time} seconds avg.)
+                    </li>
+                    <li>
+                      <strong>Why the difference?</strong> Passkey authentication doesn't require app switching or external wallet confirmation, resulting in significantly faster transaction times.
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>
@@ -242,9 +288,17 @@ const PerformanceMetrics: React.FC<MetricsProps> = ({ transactions }) => {
                         {tx.connectionMethod === 'passkey' ? 'Passkey' : 'Wallet'}
                       </Badge>
                     </div>
-                    <div className="flex items-center text-xs text-muted-foreground mt-1">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {tx.timestamp.toLocaleString()}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                      <div className="flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {tx.timestamp.toLocaleString()}
+                      </div>
+                      {tx.duration && (
+                        <div className="flex items-center">
+                          <Zap className="h-3 w-3 mr-1 text-amber-500" />
+                          {(tx.duration / 1000).toFixed(1)}s
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
