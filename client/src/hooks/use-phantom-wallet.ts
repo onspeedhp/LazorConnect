@@ -3,6 +3,8 @@ import {
   Connection,
   PublicKey,
   LAMPORTS_PER_SOL,
+  Transaction,
+  SystemProgram,
 } from '@solana/web3.js';
 import * as nacl from 'tweetnacl';
 import bs58 from 'bs58';
@@ -412,49 +414,72 @@ export function usePhantomWallet() {
   }, []);
 
   // Send a transaction
-  const sendTransaction = useCallback((senderPublicKey: string, recipientPublicKey: string, amount: number): void => {
-    if (!walletState.session && walletState.publicKey === "") {
-      console.error("Not connected to Phantom");
+  const sendTransaction = useCallback(async (senderPublicKey: string, recipientPublicKey: string, amount: number): Promise<void> => {
+    if (!walletState.session || !walletState.sharedSecret) {
+      console.error("Not connected to Phantom with a secure session");
       return;
     }
 
     try {
-      // For a real transaction, we would:
-      // 1. Create and serialize a Solana transaction
-      // 2. Encrypt the payload
-      // 3. Prepare the deeplink params
+      // Create a Solana transaction
+      const transaction = new Transaction();
       
-      // For this demo, we'll use a simplified approach
-      const redirectUrl = `${window.location.origin}${window.location.pathname}?action=phantom_transaction`;
+      // Add a transfer instruction to the transaction
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: new PublicKey(senderPublicKey),
+          toPubkey: new PublicKey(recipientPublicKey),
+          lamports: amount * LAMPORTS_PER_SOL,
+        })
+      );
       
-      // Simplified parameters that would typically include the encrypted transaction
-      const params = new URLSearchParams({
-        redirect_link: redirectUrl
+      // Set the fee payer (the connected wallet)
+      transaction.feePayer = new PublicKey(senderPublicKey);
+      
+      // Get the latest blockhash for transaction validity window
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      
+      // Serialize the transaction
+      const serializedTransaction = transaction.serialize({
+        requireAllSignatures: false,
       });
       
-      // Add encryption key if available
-      if (walletState.dappKeyPair) {
-        params.append("dapp_encryption_public_key", bs58.encode(walletState.dappKeyPair.publicKey));
-      }
+      // Create the payload with the session and transaction
+      const payload = {
+        session: walletState.session,
+        transaction: bs58.encode(serializedTransaction),
+      };
       
-      // Add transaction details for demo (in a real app, this would be part of the encrypted payload)
-      params.append("sender", senderPublicKey);
-      params.append("receiver", recipientPublicKey);
-      params.append("amount", amount.toString());
+      // Encrypt the payload using the shared secret
+      const [nonce, encryptedPayload] = encryptPayload(payload);
       
-      // Always use deep link for mobile
-      const url = `phantom://v1/signTransaction?${params.toString()}`;
+      // Generate a redirect URL for handling the transaction response
+      const redirectUrl = new URL(`${window.location.origin}${window.location.pathname}`);
+      redirectUrl.searchParams.append("action", "phantom_transaction");
+      redirectUrl.searchParams.append("timestamp", Date.now().toString());
+      
+      // Prepare parameters for the deeplink
+      const params = new URLSearchParams({
+        dapp_encryption_public_key: bs58.encode(walletState.dappKeyPair!.publicKey),
+        nonce: bs58.encode(nonce),
+        redirect_link: redirectUrl.toString(),
+        payload: bs58.encode(encryptedPayload),
+      });
+      
+      // Generate the deeplink URL for Phantom
+      const url = `phantom://v1/signAndSendTransaction?${params.toString()}`;
       
       // Log transaction details
       console.log(`Sending ${amount} SOL from ${senderPublicKey} to ${recipientPublicKey}`);
-      console.log("Redirecting to Phantom:", url);
+      console.log("Redirecting to Phantom with encrypted payload:", url);
       
-      // Redirect to Phantom
+      // Redirect to Phantom app
       window.location.href = url;
     } catch (error) {
       console.error("Error sending transaction:", error);
     }
-  }, [walletState]);
+  }, [walletState, encryptPayload]);
 
   // Return all wallet methods and state
   return {

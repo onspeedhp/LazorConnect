@@ -419,22 +419,35 @@ export default function Home() {
       setBiometricAction("transaction");
       setShowBiometricPrompt(true);
     } else {
-      // For Phantom wallet, send via deeplink redirection
+      // For Phantom wallet, send via deeplink redirection with encrypted payload
       const transactionAmount = 0.001;
       
       toast({
         title: "Transaction Initiated",
-        description: "Redirecting to Phantom wallet for approval...",
+        description: "Preparing secure transaction for Phantom wallet...",
       });
       
       // Use a simulated recipient for demo
       const recipientPublicKey = "A84X2Qpt1btdKYL1vChg7iAY23ZX4GjA5WwdcZ9pyQTk";
       
-      // Call the sendTransaction function which will redirect to Phantom
-      sendPhantomTransaction(walletAddress, recipientPublicKey, transactionAmount);
-      
-      // Note: The result will be handled when the user is redirected back
-      // via the phantom_transaction URL parameter in the useEffect hook
+      try {
+        // This will handle the transaction creation, encryption, and redirect to Phantom
+        await sendPhantomTransaction(walletAddress, recipientPublicKey, transactionAmount);
+        
+        // Show transaction processing status
+        setTransactionStatus("processing");
+        setShowTransactionModal(true);
+        
+        // Note: The final result will be handled when the user is redirected back
+        // via the phantom_transaction URL parameter in the useEffect hook
+      } catch (error) {
+        console.error("Error initiating transaction:", error);
+        toast({
+          title: "Transaction Error",
+          description: "Failed to prepare transaction. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
