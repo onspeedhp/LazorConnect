@@ -46,6 +46,6 @@ export interface ClientTransaction {
   amount: number;
   success: boolean;
   timestamp: Date;
-  connectionMethod: 'passkey' | 'backpack';
+  connectionMethod: 'passkey' | 'phantom';
   duration?: number; // Transaction duration in milliseconds
 }

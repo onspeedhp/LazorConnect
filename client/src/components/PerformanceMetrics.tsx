@@ -37,7 +37,7 @@ interface MetricsProps {
 // Set up colors for the different connection methods
 const COLORS = {
   passkey: "#4F46E5", // Indigo for passkey
-  backpack: "#059669", // Emerald for backpack/phantom
+  phantom: "#7857FF", // Purple for Phantom wallet
 };
 
 const PerformanceMetrics: React.FC<MetricsProps> = ({ transactions }) => {
@@ -59,7 +59,7 @@ const PerformanceMetrics: React.FC<MetricsProps> = ({ transactions }) => {
   const calculateSuccessRates = () => {
     const counts = {
       passkey: { total: 0, success: 0 },
-      backpack: { total: 0, success: 0 }
+      phantom: { total: 0, success: 0 }
     };
 
     transactions.forEach(tx => {
@@ -83,12 +83,12 @@ const PerformanceMetrics: React.FC<MetricsProps> = ({ transactions }) => {
       },
       {
         name: 'Wallet',
-        successRate: counts.backpack.total > 0 
-          ? Math.round((counts.backpack.success / counts.backpack.total) * 100)
+        successRate: counts.phantom.total > 0 
+          ? Math.round((counts.phantom.success / counts.phantom.total) * 100)
           : 0,
-        totalTx: counts.backpack.total,
-        successTx: counts.backpack.success,
-        color: COLORS.backpack
+        totalTx: counts.phantom.total,
+        successTx: counts.phantom.success,
+        color: COLORS.phantom
       }
     ];
   };
@@ -108,7 +108,7 @@ const PerformanceMetrics: React.FC<MetricsProps> = ({ transactions }) => {
     successfulTxWithTiming.forEach(tx => {
       if (tx.connectionMethod === 'passkey' && tx.duration) {
         passkeyTimes.push(tx.duration);
-      } else if (tx.connectionMethod === 'backpack' && tx.duration) {
+      } else if (tx.connectionMethod === 'phantom' && tx.duration) {
         walletTimes.push(tx.duration);
       }
     });
@@ -138,7 +138,7 @@ const PerformanceMetrics: React.FC<MetricsProps> = ({ transactions }) => {
       {
         name: 'Wallet',
         time: walletAvg > 0 ? walletAvg : defaultWalletTime,
-        color: COLORS.backpack,
+        color: COLORS.phantom,
         count: walletTimes.length
       }
     ];
