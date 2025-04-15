@@ -480,11 +480,99 @@ export function usePhantomWallet() {
     }
   }, [walletState, encryptPayload]);
 
+  // Process transaction response from Phantom wallet
+  const processTransactionResponse = useCallback((url: string): any => {
+    try {
+      if (!walletState.sharedSecret) {
+        console.error("Missing shared secret for transaction decryption");
+        return null;
+      }
+
+      // Check if it's a hash-based URL first
+      if (url.includes('#phantom_transaction')) {
+        // Extract search params after the hash
+        const hashParts = url.split('#phantom_transaction');
+        if (hashParts.length > 1 && hashParts[1].startsWith('?')) {
+          // Parse parameters from the hash fragment
+          const paramString = hashParts[1].substring(1); // Remove the '?'
+          const params = new URLSearchParams(paramString);
+          
+          // Check for errors
+          if (params.has('errorCode') || params.has('errorMessage')) {
+            console.error("Transaction error:", params.get('errorMessage'));
+            return null;
+          }
+          
+          // Check for data and nonce for encrypted response
+          const data = params.get("data");
+          const nonce = params.get("nonce");
+          
+          if (data && nonce) {
+            try {
+              // Decrypt the transaction data
+              const transactionData = decryptPayload(data, nonce);
+              console.log("Successfully decrypted transaction data:", transactionData);
+              return transactionData;
+            } catch (decryptError) {
+              console.error("Error decrypting transaction data:", decryptError);
+              return null;
+            }
+          } else {
+            // Check for direct signature
+            const signature = params.get("signature");
+            if (signature) {
+              return { signature };
+            }
+          }
+        }
+      } 
+      // Also handle regular URL parameters for backward compatibility
+      else {
+        const urlObj = new URL(url);
+        const params = urlObj.searchParams;
+        
+        // Check for errors
+        if (params.has('errorCode') || params.has('errorMessage')) {
+          console.error("Transaction error:", params.get('errorMessage'));
+          return null;
+        }
+        
+        // Check for data and nonce for encrypted response
+        const data = params.get("data");
+        const nonce = params.get("nonce");
+        
+        if (data && nonce) {
+          try {
+            // Decrypt the transaction data
+            const transactionData = decryptPayload(data, nonce);
+            console.log("Successfully decrypted transaction data:", transactionData);
+            return transactionData;
+          } catch (decryptError) {
+            console.error("Error decrypting transaction data:", decryptError);
+            return null;
+          }
+        } else {
+          // Check for direct signature
+          const signature = params.get("signature");
+          if (signature) {
+            return { signature };
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error("Error processing transaction response:", error);
+      return null;
+    }
+  }, [walletState.sharedSecret, decryptPayload]);
+
   // Return all wallet methods and state
   return {
     walletState,
     connectPhantom,
     processConnectionResponse,
+    processTransactionResponse,
     checkForWalletResponse,
     disconnectPhantom,
     getWalletBalance,
