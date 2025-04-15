@@ -1,6 +1,7 @@
 import { FC, useState } from 'react';
 import { ClientTransaction } from '@shared/schema';
 import { useToast } from "@/hooks/use-toast";
+import PerformanceMetrics from '@/components/PerformanceMetrics';
 
 interface DashboardProps {
   connectionMethod: 'passkey' | 'backpack';
@@ -151,7 +152,14 @@ const Dashboard: FC<DashboardProps> = ({
       </div>
       
       {/* Transaction History */}
-      <h3 className="text-lg font-semibold mb-4">Transaction History</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">Transaction History</h3>
+        {transactions.length > 0 && (
+          <span className="text-xs text-[#7857FF] flex items-center">
+            <i className="fas fa-chart-bar mr-1"></i> Performance metrics available below
+          </span>
+        )}
+      </div>
       <div className="space-y-3 mb-6">
         {transactions.length === 0 ? (
           <div className="bg-white rounded-2xl p-5 shadow-sm text-center">
@@ -161,7 +169,7 @@ const Dashboard: FC<DashboardProps> = ({
             <p className="text-sm text-[#474A57]">No transactions yet. Send a test transaction to see it here.</p>
           </div>
         ) : (
-          transactions.map((tx) => (
+          transactions.slice(0, 3).map((tx) => (
             <div key={tx.id} className="bg-white rounded-2xl p-4 shadow-sm flex justify-between items-center animate-slide-up">
               <div>
                 <div className="flex items-center mb-1">
@@ -175,6 +183,12 @@ const Dashboard: FC<DashboardProps> = ({
                     <i className={`fas ${tx.connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'} text-white text-xs`}></i>
                   </div>
                   <span className="text-xs text-[#9FA3B5]">Via {tx.connectionMethod}</span>
+                  {tx.duration && (
+                    <span className="text-xs text-[#00D170] ml-2">
+                      <i className="fas fa-bolt mr-1"></i>
+                      {(tx.duration / 1000).toFixed(1)}s
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="text-right">
@@ -182,6 +196,15 @@ const Dashboard: FC<DashboardProps> = ({
               </div>
             </div>
           ))
+        )}
+        {transactions.length > 3 && (
+          <div className="text-center">
+            <p className="text-xs text-[#9FA3B5]">
+              + {transactions.length - 3} more transactions 
+              <br />
+              <span className="text-[#7857FF]">See performance metrics below for full analysis</span>
+            </p>
+          </div>
         )}
       </div>
       
@@ -226,6 +249,17 @@ const Dashboard: FC<DashboardProps> = ({
           </ul>
         </div>
       </div>
+      
+      {/* Performance Metrics */}
+      {transactions.length > 0 && (
+        <>
+          <div className="flex items-center mb-4">
+            <i className="fas fa-tachometer-alt text-lg text-[#7857FF] mr-2"></i>
+            <h3 className="text-lg font-semibold">Performance Metrics</h3>
+          </div>
+          <PerformanceMetrics transactions={transactions} />
+        </>
+      )}
     </section>
   );
 };
