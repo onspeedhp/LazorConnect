@@ -1,4 +1,5 @@
 import { FC } from 'react';
+import lazorLogo from '../../assets/lazor-logo.png';
 
 interface PasskeyModalProps {
   isOpen: boolean;
@@ -19,8 +20,8 @@ const PasskeyModal: FC<PasskeyModalProps> = ({ isOpen, onClose, onConfirm }) => 
           <i className="fas fa-times"></i>
         </button>
         <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-full bg-[#00E5B0] mx-auto flex items-center justify-center mb-4 animate-passkey-pulse">
-            <i className="fas fa-fingerprint text-white text-2xl"></i>
+          <div className="w-16 h-16 rounded-full bg-[#7857FF] mx-auto flex items-center justify-center mb-4 animate-passkey-pulse overflow-hidden">
+            <img src={lazorLogo} alt="Lazor Logo" className="w-16 h-16 object-cover" />
           </div>
           <h3 className="text-xl font-bold mb-2">Authenticate with Passkey</h3>
           <p className="text-sm text-[#474A57]">Use biometrics to securely connect to Solana</p>

@@ -1,4 +1,5 @@
 import { FC } from 'react';
+import lazorLogo from '../assets/lazor-logo.png';
 
 interface WelcomeSectionProps {
   onConnectPasskey: () => void;
@@ -45,10 +46,10 @@ const WelcomeSection: FC<WelcomeSectionProps> = ({
             </div>
           </div>
           
-          <div className="border border-[#00E5B0]/30 bg-[#00E5B0]/5 rounded-lg p-3">
+          <div className="border border-[#7857FF]/30 bg-[#7857FF]/5 rounded-lg p-3">
             <div className="flex items-center mb-2">
-              <div className="w-6 h-6 rounded-full bg-[#00E5B0] flex items-center justify-center mr-2">
-                <i className="fas fa-fingerprint text-white text-xs"></i>
+              <div className="w-6 h-6 rounded-full bg-[#7857FF] flex items-center justify-center mr-2 overflow-hidden">
+                <img src={lazorLogo} alt="Lazor Logo" className="w-6 h-6 object-cover" />
               </div>
               <span className="text-sm font-medium">Lazor Passkey</span>
             </div>
@@ -74,11 +75,11 @@ const WelcomeSection: FC<WelcomeSectionProps> = ({
       <div className="space-y-4">
         <button
           onClick={onConnectPasskey}
-          className="w-full bg-white rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md border-2 border-transparent hover:border-[#00E5B0]/30 transition-all duration-300"
+          className="w-full bg-white rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md border-2 border-transparent hover:border-[#7857FF]/30 transition-all duration-300"
         >
           <div className="flex items-center flex-1">
-            <div className="w-10 h-10 rounded-full bg-[#00E5B0] flex items-center justify-center mr-3 animate-passkey-pulse">
-              <i className="fas fa-fingerprint text-white"></i>
+            <div className="w-10 h-10 rounded-full bg-[#7857FF] flex items-center justify-center mr-3 animate-passkey-pulse overflow-hidden">
+              <img src={lazorLogo} alt="Lazor Logo" className="w-10 h-10 object-cover" />
             </div>
             <div className="flex-1 text-center">
               <h3 className="font-semibold text-lg">Connect with Passkey</h3>
