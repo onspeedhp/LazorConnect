@@ -1,6 +1,7 @@
 import { FC, useState } from 'react';
 import { ClientTransaction } from '@shared/schema';
 import { useToast } from "@/hooks/use-toast";
+import lazorLogo from '../assets/lazor-logo.png';
 
 interface DashboardProps {
   connectionMethod: 'passkey' | 'phantom';
@@ -74,10 +75,13 @@ const Dashboard: FC<DashboardProps> = ({
             <div className="flex items-center">
               <div 
                 className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 text-white ${
-                  connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 'bg-[#7857FF]'
-                }`}
+                  connectionMethod === 'passkey' ? 'bg-[#7857FF]' : 'bg-[#7857FF]'
+                } ${connectionMethod === 'passkey' ? 'overflow-hidden' : ''}`}
               >
-                <i className={`fas ${connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'} text-xs`}></i>
+                {connectionMethod === 'passkey' ? 
+                  <img src={lazorLogo} alt="Lazor Logo" className="w-6 h-6 object-cover" /> :
+                  <i className="fas fa-wallet text-xs"></i>
+                }
               </div>
               <span className="text-sm font-medium">Connected via {connectionMethod === 'passkey' ? 'Passkey' : 'Phantom'}</span>
             </div>
@@ -173,8 +177,11 @@ const Dashboard: FC<DashboardProps> = ({
                   <span className="font-medium">Send {tx.amount} SOL</span>
                 </div>
                 <div className="flex items-center">
-                  <div className={`w-4 h-4 rounded-full ${tx.connectionMethod === 'passkey' ? 'bg-[#00E5B0]' : 'bg-[#7857FF]'} flex items-center justify-center mr-1`}>
-                    <i className={`fas ${tx.connectionMethod === 'passkey' ? 'fa-fingerprint' : 'fa-wallet'} text-white text-xs`}></i>
+                  <div className={`w-4 h-4 rounded-full ${tx.connectionMethod === 'passkey' ? 'bg-[#7857FF]' : 'bg-[#7857FF]'} flex items-center justify-center mr-1 ${tx.connectionMethod === 'passkey' ? 'overflow-hidden' : ''}`}>
+                    {tx.connectionMethod === 'passkey' ? 
+                      <img src={lazorLogo} alt="Lazor Logo" className="w-4 h-4 object-cover" /> :
+                      <i className="fas fa-wallet text-white text-xs"></i>
+                    }
                   </div>
                   <span className="text-xs text-[#9FA3B5]">Via {tx.connectionMethod}</span>
                   {tx.duration && (
@@ -204,10 +211,10 @@ const Dashboard: FC<DashboardProps> = ({
       <h3 className="text-lg font-semibold mb-4">Connection Method Comparison</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Passkey Column */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-[#00E5B0]">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-[#7857FF]">
           <div className="flex items-center mb-3">
-            <div className="w-8 h-8 rounded-full bg-[#00E5B0] flex items-center justify-center mr-2 text-white">
-              <i className="fas fa-fingerprint"></i>
+            <div className="w-8 h-8 rounded-full bg-[#7857FF] flex items-center justify-center mr-2 text-white overflow-hidden">
+              <img src={lazorLogo} alt="Lazor Logo" className="w-8 h-8 object-cover" />
             </div>
             <h4 className="text-lg font-semibold">Passkey Authentication</h4>
           </div>
@@ -215,7 +222,7 @@ const Dashboard: FC<DashboardProps> = ({
           <ul className="space-y-2">
             {connectionBenefits.passkey.map((benefit, index) => (
               <li key={index} className="flex items-start">
-                <span className="text-[#00E5B0] mr-2"><i className="fas fa-check-circle"></i></span>
+                <span className="text-[#7857FF] mr-2"><i className="fas fa-check-circle"></i></span>
                 <span className="text-sm">{benefit}</span>
               </li>
             ))}

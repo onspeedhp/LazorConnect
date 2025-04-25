@@ -1,4 +1,5 @@
 import { FC } from 'react';
+import lazorLogo from '../../assets/lazor-logo.png';
 
 interface BiometricPromptProps {
   isOpen: boolean;
@@ -31,8 +32,8 @@ const BiometricPrompt: FC<BiometricPromptProps> = ({
     <div className="fixed inset-0 bg-[#131418]/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-3xl w-11/12 max-w-sm p-6 relative animate-slide-up">
         <div className="text-center mb-6">
-          <div className="w-20 h-20 rounded-full bg-[#FAFBFF] mx-auto flex items-center justify-center mb-4">
-            <i className="fas fa-fingerprint text-[#00E5B0] text-4xl"></i>
+          <div className="w-20 h-20 rounded-full bg-[#7857FF] mx-auto flex items-center justify-center mb-4 overflow-hidden">
+            <img src={lazorLogo} alt="Lazor Logo" className="w-20 h-20 object-cover" />
           </div>
           <h3 className="text-xl font-bold mb-2">{getTitle()}</h3>
           <p className="text-sm text-[#474A57]">{getMessage()}</p>
